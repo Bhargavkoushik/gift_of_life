@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply m-0 bg-slate-50 text-slate-900 antialiased;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply min-h-screen bg-slate-50;
+  }
+
+  .topbar {
+    @apply sticky top-0 z-20 border-b border-slate-200 bg-white/95;
+  }
+
+  .topbar-inner {
+    @apply mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between;
+  }
+
+  .brand {
+    @apply flex flex-col gap-1;
+  }
+
+  .brand-name {
+    @apply text-lg font-semibold tracking-tight text-rose-700;
+  }
+
+  .brand-meta {
+    @apply text-sm text-slate-600;
+  }
+
+  .topbar-nav {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .nav-link {
+    @apply inline-flex items-center rounded-full border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2;
+  }
+
+  .nav-link-active {
+    @apply border-rose-200 bg-rose-600 text-white hover:bg-rose-600 hover:text-white;
+  }
+
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-4 py-6;
+  }
+
+  .dashboard-shell {
+    @apply mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 lg:flex-row;
+  }
+
+  .sidebar {
+    @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:w-64 lg:shrink-0;
+  }
+
+  .sidebar-title {
+    @apply mb-3 text-sm font-semibold uppercase tracking-wide text-rose-700;
+  }
+
+  .sidebar-nav {
+    @apply flex flex-wrap gap-2 lg:flex-col;
+  }
+
+  .sidebar-nav .nav-link {
+    @apply w-full justify-start rounded-xl px-3 py-2;
+  }
+
+  .content-area {
+    @apply min-w-0 flex-1;
+  }
+
+  .page-stack {
+    @apply space-y-6;
+  }
+
+  .page-header,
+  .placeholder-section,
+  .hero-panel,
+  .section-tile {
+    @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-sm;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-slate-900;
+  }
+
+  .page-description,
+  .section-description,
+  .hero-description,
+  .muted-text {
+    @apply mt-2 text-sm leading-6 text-slate-600;
+  }
+
+  .hero-panel {
+    @apply border-slate-900 bg-slate-900 text-white;
+  }
+
+  .hero-tag {
+    @apply inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-rose-700;
+  }
+
+  .hero-title {
+    @apply mt-4 text-3xl font-semibold tracking-tight sm:text-4xl;
+  }
+
+  .hero-description {
+    @apply mt-3 max-w-2xl text-slate-200;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-slate-900;
+  }
+
+  .placeholder-list {
+    @apply mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2;
+  }
+
+  .placeholder-item {
+    @apply rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3;
+  }
+
+  .compact-grid {
+    @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-3;
+  }
+
+  .home-grid {
+    @apply grid gap-4 md:grid-cols-2 xl:grid-cols-3;
+  }
+
+  .section-kicker {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-rose-700;
+  }
+
+  .section-cta {
+    @apply mt-4 inline-flex items-center rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700;
+  }
+
+  .footer {
+    @apply border-t border-slate-200 bg-white;
+  }
+
+  .footer-inner {
+    @apply mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 text-sm text-slate-500 md:flex-row md:items-center md:justify-between;
+  }
+}
