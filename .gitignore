@@ -1,0 +1,36 @@
+# OS
+Thumbs.db
+Desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+ENV/
+
+# Node.js
+node_modules/
+dist/
+build/
+coverage/
+.next/
+out/
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Keep empty folders in git
+backend/.gitkeep
+frontend/.gitkeep
