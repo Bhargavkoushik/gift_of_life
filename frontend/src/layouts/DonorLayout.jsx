@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import MedicalBackground from '../components/MedicalBackground';
 
 const donorLinks = [
   { to: '/donor/dashboard', label: 'Dashboard', end: true },
@@ -13,9 +14,10 @@ const donorLinks = [
 
 export default function DonorLayout() {
   return (
-    <div className="app-shell">
+    <div className="app-shell relative overflow-hidden min-h-screen">
+      <MedicalBackground variant="simple" />
       <Navbar title="Gift of Life" subtitle="Donor area" links={[{ to: '/', label: 'Public Site', end: true }]} />
-      <div className="dashboard-shell">
+      <div className="dashboard-shell relative z-10">
         <Sidebar title="Donor" links={donorLinks} />
         <main className="content-area">
           <Outlet />

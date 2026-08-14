@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import MedicalBackground from '../components/MedicalBackground';
 
 const receiverLinks = [
   { to: '/receiver/dashboard', label: 'Dashboard', end: true },
@@ -12,9 +13,10 @@ const receiverLinks = [
 
 export default function ReceiverLayout() {
   return (
-    <div className="app-shell">
+    <div className="app-shell relative overflow-hidden min-h-screen">
+      <MedicalBackground variant="simple" />
       <Navbar title="Gift of Life" subtitle="Receiver area" links={[{ to: '/', label: 'Public Site', end: true }]} />
-      <div className="dashboard-shell">
+      <div className="dashboard-shell relative z-10">
         <Sidebar title="Receiver" links={receiverLinks} />
         <main className="content-area">
           <Outlet />

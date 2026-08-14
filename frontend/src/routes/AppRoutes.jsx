@@ -1,4 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AuthProvider } from '../context/AuthContext';
+import ProtectedRoute from '../components/ProtectedRoute';
 import AdminLayout from '../layouts/AdminLayout';
 import CoordinatorLayout from '../layouts/CoordinatorLayout';
 import DonorLayout from '../layouts/DonorLayout';
@@ -12,6 +14,8 @@ import DonationEligibility from '../pages/public/DonationEligibility';
 import Home from '../pages/public/Home';
 import HowDonationWorks from '../pages/public/HowDonationWorks';
 import Login from '../pages/public/Login';
+import Signup from '../pages/public/Signup';
+import SelectRole from '../pages/public/SelectRole';
 import AdminDashboard from '../roles/admin/pages/AdminDashboard';
 import CoordinatorDashboard from '../roles/coordinator/pages/CoordinatorDashboard';
 import DonorAvailability from '../roles/donor/pages/DonorAvailability';
@@ -40,59 +44,99 @@ import Reports from '../roles/admin/pages/Reports';
 
 function AppRoutes() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<PublicLayout />}>
-          <Route index element={<Home />} />
-          <Route path="about" element={<About />} />
-          <Route path="blood-availability" element={<BloodAvailability />} />
-          <Route path="blood-banks" element={<BloodBanks />} />
-          <Route path="blood-camps" element={<BloodCamps />} />
-          <Route path="donation-eligibility" element={<DonationEligibility />} />
-          <Route path="how-donation-works" element={<HowDonationWorks />} />
-          <Route path="login" element={<Login />} />
-        </Route>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route index element={<Home />} />
+            <Route path="about" element={<About />} />
+            <Route path="blood-availability" element={<BloodAvailability />} />
+            <Route path="blood-banks" element={<BloodBanks />} />
+            <Route path="blood-camps" element={<BloodCamps />} />
+            <Route path="donation-eligibility" element={<DonationEligibility />} />
+            <Route path="how-donation-works" element={<HowDonationWorks />} />
+            <Route path="login" element={<Login />} />
+            <Route path="signup" element={<Signup />} />
+          </Route>
 
-        <Route path="donor" element={<DonorLayout />}>
-          <Route path="dashboard" element={<DonorDashboard />} />
-          <Route path="profile" element={<DonorProfile />} />
-          <Route path="availability" element={<DonorAvailability />} />
-          <Route path="requests" element={<DonorRequests />} />
-          <Route path="donation-history" element={<DonorDonationHistory />} />
-          <Route path="notifications" element={<DonorNotifications />} />
-        </Route>
+          <Route
+            path="select-role"
+            element={
+              <ProtectedRoute>
+                <SelectRole />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route path="receiver" element={<ReceiverLayout />}>
-          <Route path="dashboard" element={<ReceiverDashboard />} />
-          <Route path="request-blood" element={<RequestBlood />} />
-          <Route path="requests" element={<MyRequests />} />
-          <Route path="requests/:id" element={<ReceiverRequestDetails />} />
-          <Route path="history" element={<RequestHistory />} />
-          <Route path="notifications" element={<ReceiverNotifications />} />
-        </Route>
+          <Route
+            path="donor"
+            element={
+              <ProtectedRoute requiredRole="DONOR">
+                <DonorLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="dashboard" element={<DonorDashboard />} />
+            <Route path="profile" element={<DonorProfile />} />
+            <Route path="availability" element={<DonorAvailability />} />
+            <Route path="requests" element={<DonorRequests />} />
+            <Route path="donation-history" element={<DonorDonationHistory />} />
+            <Route path="notifications" element={<DonorNotifications />} />
+          </Route>
 
-        <Route path="coordinator" element={<CoordinatorLayout />}>
-          <Route path="dashboard" element={<CoordinatorDashboard />} />
-          <Route path="requests" element={<AssignedRequests />} />
-          <Route path="requests/:id" element={<CoordinatorRequestDetails />} />
-          <Route path="donor-responses" element={<DonorResponses />} />
-          <Route path="follow-ups" element={<FollowUps />} />
-          <Route path="notifications" element={<CoordinatorNotifications />} />
-        </Route>
+          <Route
+            path="receiver"
+            element={
+              <ProtectedRoute requiredRole="RECEIVER">
+                <ReceiverLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="dashboard" element={<ReceiverDashboard />} />
+            <Route path="request-blood" element={<RequestBlood />} />
+            <Route path="requests" element={<MyRequests />} />
+            <Route path="requests/:id" element={<ReceiverRequestDetails />} />
+            <Route path="history" element={<RequestHistory />} />
+            <Route path="notifications" element={<ReceiverNotifications />} />
+          </Route>
 
-        <Route path="admin" element={<AdminLayout />}>
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="donors" element={<DonorManagement />} />
-          <Route path="requests" element={<RequestManagement />} />
-          <Route path="coordinators" element={<AdminCoordinatorManagement />} />
-          <Route path="donations" element={<DonationManagement />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="notifications" element={<NotificationManagement />} />
-        </Route>
+          <Route
+            path="coordinator"
+            element={
+              <ProtectedRoute requiredRole="COORDINATOR">
+                <CoordinatorLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="dashboard" element={<CoordinatorDashboard />} />
+            <Route path="requests" element={<AssignedRequests />} />
+            <Route path="requests/:id" element={<CoordinatorRequestDetails />} />
+            <Route path="donor-responses" element={<DonorResponses />} />
+            <Route path="follow-ups" element={<FollowUps />} />
+            <Route path="notifications" element={<CoordinatorNotifications />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          <Route
+            path="admin"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="donors" element={<DonorManagement />} />
+            <Route path="requests" element={<RequestManagement />} />
+            <Route path="coordinators" element={<AdminCoordinatorManagement />} />
+            <Route path="donations" element={<DonationManagement />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="notifications" element={<NotificationManagement />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
