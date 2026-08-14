@@ -1,7 +1,9 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import pool from '../../database/connection.js';
 import * as authRepository from './repository.js';
+import * as notificationService from '../../services/notificationService.js';
 
 const SALT_ROUNDS = 10;
 
@@ -205,4 +207,94 @@ export async function becomeReceiver(userId, receiverData) {
     token,
     roles
   };
+}
+
+export async function requestPasswordReset({ identifier }) {
+  const user = await authRepository.getUserByIdentifier(identifier);
+  if (!user) {
+    // Avoid revealing user existence
+    return { message: 'If an account exists with this information, recovery instructions will be sent.' };
+  }
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  const minutes = parseInt(process.env.PASSWORD_RESET_TOKEN_MINUTES, 10) || 30;
+  const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+
+  // Invalidate any existing active tokens for this user
+  await authRepository.invalidateUserResetTokens(user.id);
+
+  // Create new active token
+  await authRepository.createResetToken(user.id, tokenHash, expiresAt);
+
+  // Deliver token using corresponding channel
+  const isEmail = identifier.includes('@');
+  try {
+    if (isEmail) {
+      await notificationService.sendPasswordResetNotification(user, rawToken);
+    } else {
+      await notificationService.sendPasswordResetSMS(user, rawToken);
+    }
+  } catch (error) {
+    const err = new Error(`Recovery service is temporarily unavailable: ${error.message}`);
+    err.statusCode = 503;
+    throw err;
+  }
+
+  return { message: 'If an account exists with this information, recovery instructions will be sent.' };
+}
+
+export async function resetUserPassword({ token, password }) {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const activeToken = await authRepository.getActiveResetToken(tokenHash);
+
+  if (!activeToken) {
+    const err = new Error('Invalid or expired reset token');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Hash new password
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+  // Update password in DB
+  await authRepository.updateUserPassword(activeToken.user_id, passwordHash);
+
+  // Invalidate this token and other reset tokens for safety
+  await authRepository.invalidateUserResetTokens(activeToken.user_id);
+  await authRepository.markResetTokenAsUsed(activeToken.id);
+
+  return { message: 'Password reset successfully' };
+}
+
+export async function changeUserPassword(userId, { currentPassword, newPassword }) {
+  const hash = await authRepository.getUserPasswordHash(userId);
+  if (!hash) {
+    const err = new Error('User not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Verify current password matches
+  const match = await bcrypt.compare(currentPassword, hash);
+  if (!match) {
+    const err = new Error('Incorrect current password');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Verify it is not identical to current password
+  const isSame = await bcrypt.compare(newPassword, hash);
+  if (isSame) {
+    const err = new Error('New password cannot be the same as your current password');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Hash new password
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await authRepository.updateUserPassword(userId, passwordHash);
+
+  return { message: 'Password changed successfully' };
 }
