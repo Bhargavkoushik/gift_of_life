@@ -40,7 +40,8 @@ app.use((err, req, res, next) => {
 	const status = err.statusCode || 500;
 	const message = status === 500 ? 'An unexpected server error occurred' : err.message;
 	res.status(status).json({
-		status: 'error',
+		success: false,
+		code: err.code || (status === 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST'),
 		message
 	});
 });

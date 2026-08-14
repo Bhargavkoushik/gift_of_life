@@ -24,6 +24,8 @@ export default function Login() {
     }
   }, [location.state]);
 
+  const [showPassword, setShowPassword] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -39,13 +41,35 @@ export default function Login() {
       const userRoles = loggedUser.roles || [];
 
       // Determine redirect path
-      const from = location.state?.from?.pathname;
-      if (from) {
+      const from = location.state?.from;
+      const fromPathname = from?.pathname;
+      const fromSearch = from?.search || '';
+
+      if (fromPathname) {
+        if (fromPathname === '/select-role') {
+          if (fromSearch.includes('onboard=donor')) {
+            if (userRoles.includes('DONOR')) {
+              navigate('/donor/dashboard', { replace: true });
+            } else {
+              navigate('/select-role?onboard=donor', { replace: true });
+            }
+            return;
+          }
+          if (fromSearch.includes('onboard=receiver')) {
+            if (userRoles.includes('RECEIVER')) {
+              navigate('/receiver/dashboard', { replace: true });
+            } else {
+              navigate('/select-role?onboard=receiver', { replace: true });
+            }
+            return;
+          }
+        }
+
         // If there was a redirect from a protected page, check role match
-        const isDonorRoute = from.startsWith('/donor');
-        const isReceiverRoute = from.startsWith('/receiver');
-        const isCoordinatorRoute = from.startsWith('/coordinator');
-        const isAdminRoute = from.startsWith('/admin');
+        const isDonorRoute = fromPathname.startsWith('/donor');
+        const isReceiverRoute = fromPathname.startsWith('/receiver');
+        const isCoordinatorRoute = fromPathname.startsWith('/coordinator');
+        const isAdminRoute = fromPathname.startsWith('/admin');
 
         if (
           (isDonorRoute && userRoles.includes('DONOR')) ||
@@ -53,7 +77,7 @@ export default function Login() {
           (isCoordinatorRoute && userRoles.includes('COORDINATOR')) ||
           (isAdminRoute && userRoles.includes('ADMIN'))
         ) {
-          navigate(from, { replace: true });
+          navigate(fromPathname + fromSearch, { replace: true });
           return;
         }
       }
@@ -104,7 +128,7 @@ export default function Login() {
             <input
               type="text"
               placeholder="e.g. john@example.com or phone"
-              className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
               {...register('email')}
             />
             {errors.email && (
@@ -113,15 +137,29 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
-              {...register('password')}
-            />
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Password
+              </label>
+              <Link to="/forgot-password" id="forgot-password-link" className="text-xs font-semibold text-brand-red hover:text-brand-red-dark hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                className="w-full rounded-lg border border-slate-200 p-2.5 pr-10 text-sm focus:border-brand-red focus:outline-none"
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none select-none"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
             {errors.password && (
               <p className="mt-1 text-xs text-rose-600 font-medium">{errors.password.message}</p>
             )}
@@ -130,7 +168,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-lg bg-emerald-600 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:bg-slate-300"
+            className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 cursor-pointer"
           >
             {isSubmitting ? 'Signing in...' : 'Sign In'}
           </button>
@@ -138,7 +176,7 @@ export default function Login() {
 
         <div className="mt-6 text-center text-sm text-slate-500">
           New to Gift of Life?{' '}
-          <Link to="/signup" className="font-semibold text-emerald-600 hover:text-emerald-700">
+          <Link to="/signup" className="font-semibold text-brand-red hover:text-brand-red-dark">
             Create an Account
           </Link>
         </div>

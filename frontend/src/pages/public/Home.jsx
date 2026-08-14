@@ -8,22 +8,22 @@ export default function Home() {
   // "Become a Donor" flow logic
   const handleBecomeDonor = () => {
     if (!user) {
-      navigate('/select-role');
+      navigate('/select-role?onboard=donor');
     } else if (roles && roles.includes('DONOR')) {
       navigate('/donor/dashboard');
     } else {
-      navigate('/select-role');
+      navigate('/select-role?onboard=donor');
     }
   };
 
   // "Request Blood" flow logic
   const handleRequestBlood = () => {
     if (!user) {
-      navigate('/select-role');
+      navigate('/select-role?onboard=receiver');
     } else if (roles && roles.includes('RECEIVER')) {
       navigate('/receiver/request-blood');
     } else {
-      navigate('/select-role');
+      navigate('/select-role?onboard=receiver');
     }
   };
 

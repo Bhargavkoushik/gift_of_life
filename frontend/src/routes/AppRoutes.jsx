@@ -16,6 +16,9 @@ import HowDonationWorks from '../pages/public/HowDonationWorks';
 import Login from '../pages/public/Login';
 import Signup from '../pages/public/Signup';
 import SelectRole from '../pages/public/SelectRole';
+import ForgotPassword from '../pages/public/ForgotPassword';
+import ResetPassword from '../pages/public/ResetPassword';
+import ChangePassword from '../pages/public/ChangePassword';
 import AdminDashboard from '../roles/admin/pages/AdminDashboard';
 import CoordinatorDashboard from '../roles/coordinator/pages/CoordinatorDashboard';
 import DonorAvailability from '../roles/donor/pages/DonorAvailability';
@@ -57,6 +60,8 @@ function AppRoutes() {
             <Route path="how-donation-works" element={<HowDonationWorks />} />
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route path="reset-password" element={<ResetPassword />} />
           </Route>
 
           <Route
@@ -64,6 +69,15 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <SelectRole />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="change-password"
+            element={
+              <ProtectedRoute>
+                <ChangePassword />
               </ProtectedRoute>
             }
           />

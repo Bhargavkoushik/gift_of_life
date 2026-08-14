@@ -90,3 +90,51 @@ export async function updateLastLogin(userId) {
     [userId]
   );
 }
+
+export async function getUserPasswordHash(userId) {
+  const result = await pool.query(
+    `SELECT password_hash FROM users WHERE id = $1`,
+    [userId]
+  );
+  return result.rows[0]?.password_hash;
+}
+
+export async function updateUserPassword(userId, passwordHash) {
+  await pool.query(
+    `UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+    [passwordHash, userId]
+  );
+}
+
+export async function invalidateUserResetTokens(userId) {
+  await pool.query(
+    `UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND used_at IS NULL`,
+    [userId]
+  );
+}
+
+export async function createResetToken(userId, tokenHash, expiresAt) {
+  const result = await pool.query(
+    `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [userId, tokenHash, expiresAt]
+  );
+  return result.rows[0];
+}
+
+export async function getActiveResetToken(tokenHash) {
+  const result = await pool.query(
+    `SELECT * FROM password_reset_tokens
+     WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP AND used_at IS NULL`,
+    [tokenHash]
+  );
+  return result.rows[0];
+}
+
+export async function markResetTokenAsUsed(tokenId) {
+  await pool.query(
+    `UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = $1`,
+    [tokenId]
+  );
+}

@@ -45,4 +45,19 @@ export const becomeReceiver = async (receiverData) => {
   return response.data;
 };
 
+export const forgotPassword = async (identifier) => {
+  const response = await api.post('/auth/forgot-password', { identifier });
+  return response.data;
+};
+
+export const resetPassword = async (token, password, confirmPassword) => {
+  const response = await api.post('/auth/reset-password', { token, password, confirmPassword });
+  return response.data;
+};
+
+export const changePassword = async (currentPassword, newPassword, confirmPassword) => {
+  const response = await api.post('/auth/change-password', { currentPassword, newPassword, confirmPassword });
+  return response.data;
+};
+
 export default api;

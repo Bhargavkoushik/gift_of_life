@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 
-export default function Navbar({ title, subtitle, links = [] }) {
+export default function Navbar({ title, subtitle, links = [], onLogout }) {
   return (
     <header className="topbar">
       <div className="topbar-inner">
@@ -20,6 +20,14 @@ export default function Navbar({ title, subtitle, links = [] }) {
               {link.label}
             </NavLink>
           ))}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="nav-link bg-transparent border-none cursor-pointer text-left font-sans font-semibold hover:text-brand-red transition"
+            >
+              Sign Out
+            </button>
+          )}
         </nav>
       </div>
     </header>

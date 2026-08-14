@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -44,8 +44,19 @@ const bloodGroups = [
 export default function SelectRole() {
   const { user, roles, switchWorkspace, promoteToDonor, promoteToReceiver, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeForm, setActiveForm] = useState(null); // 'donor' or 'receiver'
   const [errorMsg, setErrorMsg] = useState(null);
+
+  const onboardParam = searchParams.get('onboard');
+
+  useEffect(() => {
+    if (onboardParam === 'donor' && roles && !roles.includes('DONOR')) {
+      setActiveForm('donor');
+    } else if (onboardParam === 'receiver' && roles && !roles.includes('RECEIVER')) {
+      setActiveForm('receiver');
+    }
+  }, [onboardParam, roles]);
 
   const donorForm = useForm({
     resolver: zodResolver(donorSchema),
@@ -89,6 +100,11 @@ export default function SelectRole() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
+
   return (
     <div className="relative min-h-screen bg-slate-50 overflow-hidden py-10 px-4">
       <MedicalBackground variant="simple" />
@@ -99,8 +115,8 @@ export default function SelectRole() {
           description="Manage your account profile workspaces or register for role access."
         />
         <button
-          onClick={logout}
-          className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          onClick={handleLogout}
+          className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 cursor-pointer"
         >
           Sign Out
         </button>
@@ -118,7 +134,7 @@ export default function SelectRole() {
           {/* DONOR CARD */}
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
             <div>
-              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${roles.includes('DONOR') ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${roles.includes('DONOR') ? 'bg-brand-red-light/35 text-brand-red' : 'bg-slate-100 text-slate-500'}`}>
                 {roles.includes('DONOR') ? 'Active Profile' : 'Not Activated'}
               </span>
               <h3 className="mt-4 text-lg font-bold text-slate-900">Blood Donor Workspace</h3>
@@ -130,14 +146,14 @@ export default function SelectRole() {
               {roles.includes('DONOR') ? (
                 <button
                   onClick={() => handleSelectRole('DONOR')}
-                  className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                  className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark"
                 >
                   Enter Donor Dashboard
                 </button>
               ) : (
                 <button
                   onClick={() => setActiveForm('donor')}
-                  className="w-full rounded-lg border border-emerald-600 py-2.5 text-sm font-semibold text-emerald-600 hover:bg-emerald-50"
+                  className="w-full rounded-lg border border-brand-red py-2.5 text-sm font-semibold text-brand-red hover:bg-brand-red-light/35"
                 >
                   Become a Donor
                 </button>
@@ -148,7 +164,7 @@ export default function SelectRole() {
           {/* RECEIVER CARD */}
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
             <div>
-              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${roles.includes('RECEIVER') ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${roles.includes('RECEIVER') ? 'bg-brand-red-light/35 text-brand-red' : 'bg-slate-100 text-slate-500'}`}>
                 {roles.includes('RECEIVER') ? 'Active Profile' : 'Not Activated'}
               </span>
               <h3 className="mt-4 text-lg font-bold text-slate-900">Blood Request Workspace</h3>
@@ -160,14 +176,14 @@ export default function SelectRole() {
               {roles.includes('RECEIVER') ? (
                 <button
                   onClick={() => handleSelectRole('RECEIVER')}
-                  className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                  className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark"
                 >
                   Enter Receiver Dashboard
                 </button>
               ) : (
                 <button
                   onClick={() => setActiveForm('receiver')}
-                  className="w-full rounded-lg border border-emerald-600 py-2.5 text-sm font-semibold text-emerald-600 hover:bg-emerald-50"
+                  className="w-full rounded-lg border border-brand-red py-2.5 text-sm font-semibold text-brand-red hover:bg-brand-red-light/35"
                 >
                   Request Blood (Register Profile)
                 </button>
@@ -235,7 +251,7 @@ export default function SelectRole() {
                   Blood Group
                 </label>
                 <select
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...donorForm.register('blood_group_id')}
                 >
                   <option value="">Select blood group</option>
@@ -254,7 +270,7 @@ export default function SelectRole() {
                 </label>
                 <input
                   type="date"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...donorForm.register('date_of_birth')}
                 />
                 {donorForm.formState.errors.date_of_birth && (
@@ -267,7 +283,7 @@ export default function SelectRole() {
                   Gender
                 </label>
                 <select
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...donorForm.register('gender')}
                 >
                   <option value="">Select gender</option>
@@ -288,7 +304,7 @@ export default function SelectRole() {
               <input
                 type="tel"
                 placeholder={user?.phone}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                 {...donorForm.register('phone')}
               />
             </div>
@@ -300,7 +316,7 @@ export default function SelectRole() {
               <textarea
                 placeholder="Street address, building, floor..."
                 rows={2}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                 {...donorForm.register('address')}
               />
               {donorForm.formState.errors.address && (
@@ -316,7 +332,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. Gachibowli"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...donorForm.register('area')}
                 />
                 {donorForm.formState.errors.area && (
@@ -331,7 +347,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. Hyderabad"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...donorForm.register('district')}
                 />
                 {donorForm.formState.errors.district && (
@@ -346,7 +362,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. Telangana"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...donorForm.register('state')}
                 />
                 {donorForm.formState.errors.state && (
@@ -361,7 +377,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. 500032"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...donorForm.register('pincode')}
                 />
                 {donorForm.formState.errors.pincode && (
@@ -373,7 +389,7 @@ export default function SelectRole() {
             <button
               type="submit"
               disabled={donorForm.formState.isSubmitting}
-              className="w-full rounded-lg bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark transition"
             >
               {donorForm.formState.isSubmitting ? 'Registering...' : 'Register as Blood Donor'}
             </button>
@@ -403,7 +419,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. John Doe"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...receiverForm.register('name')}
                 />
                 {receiverForm.formState.errors.name && (
@@ -416,7 +432,7 @@ export default function SelectRole() {
                   Receiver Type
                 </label>
                 <select
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...receiverForm.register('receiver_type')}
                 >
                   <option value="INDIVIDUAL">Individual / Patient</option>
@@ -433,7 +449,7 @@ export default function SelectRole() {
               <input
                 type="tel"
                 placeholder={user?.phone}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                 {...receiverForm.register('phone')}
               />
               {receiverForm.formState.errors.phone && (
@@ -448,7 +464,7 @@ export default function SelectRole() {
               <textarea
                 placeholder="Street address, building, floor..."
                 rows={2}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                 {...receiverForm.register('address')}
               />
               {receiverForm.formState.errors.address && (
@@ -464,7 +480,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. Madhapur"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...receiverForm.register('area')}
                 />
                 {receiverForm.formState.errors.area && (
@@ -479,7 +495,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. Hyderabad"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...receiverForm.register('district')}
                 />
                 {receiverForm.formState.errors.district && (
@@ -494,7 +510,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. Telangana"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...receiverForm.register('state')}
                 />
                 {receiverForm.formState.errors.state && (
@@ -509,7 +525,7 @@ export default function SelectRole() {
                 <input
                   type="text"
                   placeholder="e.g. 500081"
-                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                   {...receiverForm.register('pincode')}
                 />
                 {receiverForm.formState.errors.pincode && (
@@ -521,11 +537,32 @@ export default function SelectRole() {
             <button
               type="submit"
               disabled={receiverForm.formState.isSubmitting}
-              className="w-full rounded-lg bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark transition"
             >
               {receiverForm.formState.isSubmitting ? 'Registering...' : 'Register as Blood Receiver'}
             </button>
           </form>
+        </div>
+      )}
+
+      {!activeForm && (
+        <div className="mt-10 pt-8 border-t border-slate-200 max-w-md mx-auto">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Account Settings</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Manage your account security and password.
+              </p>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => navigate('/change-password')}
+                className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark transition cursor-pointer text-center block"
+              >
+                Change Password →
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
