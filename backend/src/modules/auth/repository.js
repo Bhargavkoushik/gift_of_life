@@ -1,0 +1,92 @@
+import pool from '../../database/connection.js';
+
+export async function createUser(name, email, phone, passwordHash) {
+  const result = await pool.query(
+    `INSERT INTO users (name, email, phone, password_hash) 
+     VALUES ($1, $2, $3, $4) 
+     RETURNING id, name, email, phone, status, created_at`,
+    [name, email, phone, passwordHash]
+  );
+  return result.rows[0];
+}
+
+export async function getUserById(id) {
+  const result = await pool.query(
+    `SELECT id, name, email, phone, status, created_at 
+     FROM users 
+     WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0];
+}
+
+export async function getUserByIdentifier(identifier) {
+  // Support both email or phone as login identifier
+  const result = await pool.query(
+    `SELECT * FROM users WHERE email = $1 OR phone = $1`,
+    [identifier]
+  );
+  return result.rows[0];
+}
+
+export async function getUserRoles(userId) {
+  const result = await pool.query(
+    `SELECT role FROM user_roles WHERE user_id = $1`,
+    [userId]
+  );
+  return result.rows.map(row => row.role);
+}
+
+export async function checkUserExistsByEmailOrPhone(email, phone) {
+  const result = await pool.query(
+    `SELECT id, email, phone FROM users WHERE email = $1 OR phone = $2`,
+    [email, phone]
+  );
+  return result.rows;
+}
+
+export async function getBloodGroupById(id) {
+  const result = await pool.query(
+    `SELECT id, code, name FROM blood_groups WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0];
+}
+
+export async function addRole(userId, role, client = pool) {
+  await client.query(
+    `INSERT INTO user_roles (user_id, role) 
+     VALUES ($1, $2) 
+     ON CONFLICT (user_id, role) DO NOTHING`,
+    [userId, role]
+  );
+}
+
+export async function createDonorProfile(userId, bloodGroupId, dateOfBirth, gender, phone, address, area, district, state, pincode, client = pool) {
+  const result = await client.query(
+    `INSERT INTO donor_profiles (user_id, blood_group_id, date_of_birth, gender, phone, address, area, district, state, pincode) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+     ON CONFLICT (user_id) DO NOTHING
+     RETURNING id`,
+    [userId, bloodGroupId, dateOfBirth, gender, phone || null, address, area, district, state, pincode]
+  );
+  return result.rows[0];
+}
+
+export async function createReceiverProfile(userId, name, phone, address, area, district, state, pincode, receiverType, client = pool) {
+  const result = await client.query(
+    `INSERT INTO receiver_profiles (user_id, name, phone, address, area, district, state, pincode, receiver_type) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+     ON CONFLICT (user_id) DO NOTHING
+     RETURNING id`,
+    [userId, name, phone, address, area, district, state, pincode, receiverType]
+  );
+  return result.rows[0];
+}
+
+export async function updateLastLogin(userId) {
+  await pool.query(
+    `UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1`,
+    [userId]
+  );
+}
