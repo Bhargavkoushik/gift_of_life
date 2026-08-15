@@ -463,9 +463,9 @@ export default function CoordinatorManagement() {
 
                         <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-xxs text-slate-500 font-medium">
                           <div>
-                            <span className="text-slate-400 block uppercase font-bold text-[9px]">Invitation Status</span>
+                            <span className="text-slate-400 block uppercase font-bold text-[9px]">Verification / Account Status</span>
                             <span className={`inline-flex rounded-full px-2 py-0.5 mt-0.5 border text-[10px] font-bold ${stateColors[computedState]}`}>
-                              {computedState.toUpperCase()}
+                              {computedState === 'Approved' ? 'Approved / Inactive' : computedState === 'Active' ? 'Approved / Active' : computedState.toUpperCase()}
                             </span>
                           </div>
                           <div>
@@ -761,147 +761,191 @@ export default function CoordinatorManagement() {
 
               {/* RIGHT COLUMN: LIFECYCLE TIMELINE & AUDITS */}
               <div className="md:col-span-1 space-y-6">
-                
-                {/* Timeline Checklist */}
-                <div className="rounded-xl border border-slate-200 p-5 space-y-5 bg-slate-50/20">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-450 border-b border-slate-200 pb-2 font-sans">
-                    Invitation Timeline
-                  </h4>
+                 {/* Timeline Checklist */}
+                 <div className="rounded-xl border border-slate-200 p-5 space-y-5 bg-slate-50/20">
+                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-450 border-b border-slate-200 pb-2 font-sans">
+                     Invitation Timeline
+                   </h4>
 
-                  <div className="space-y-5 relative pl-5 before:absolute before:left-[9px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                    
-                    {/* Milestones check list */}
-                    <div className="relative flex gap-2.5 text-xxs">
-                      <div className="absolute -left-[20px] rounded-full bg-emerald-500 h-3.5 w-3.5 border-2 border-white flex items-center justify-center shadow-sm">
-                        <span className="text-[7px] text-white">✓</span>
-                      </div>
-                      <div className="space-y-0.5">
-                        <strong className="text-slate-800 block">Invitation Created</strong>
-                        <span className="text-[10px] text-slate-400 font-mono block">
-                          {formatTimestamp(selectedCoordDetails.invite.created_at)}
-                        </span>
-                      </div>
-                    </div>
+                   {/* Grouped Vertical Timeline */}
+                   <div className="space-y-6">
+                     
+                     {/* Section 1: Invitation Lifecycle */}
+                     <div className="space-y-4">
+                       <h4 className="text-xxs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">1. Invitation Lifecycle</h4>
+                       <div className="space-y-4 relative pl-5 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                         {/* Created */}
+                         <div className="relative flex gap-3 text-xxs">
+                           <div className="absolute -left-[21px] rounded-full bg-emerald-500 h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white">✓</div>
+                           <div>
+                             <strong className="text-slate-800">Invitation Created</strong>
+                             <span className="text-[10px] text-slate-455 font-mono block mt-0.5">{formatTimestamp(selectedCoordDetails.invite.created_at)}</span>
+                           </div>
+                         </div>
+                         
+                         {/* Sent */}
+                         <div className="relative flex gap-3 text-xxs">
+                           <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                             selectedCoordDetails.invite.email_status === 'SENT' ? 'bg-emerald-500' :
+                             selectedCoordDetails.invite.email_status === 'FAILED' ? 'bg-rose-500' : 'bg-slate-350'
+                           }`}>
+                             {selectedCoordDetails.invite.email_status === 'SENT' ? '✓' : selectedCoordDetails.invite.email_status === 'FAILED' ? '!' : ''}
+                           </div>
+                           <div>
+                             <strong className="text-slate-800">
+                               {selectedCoordDetails.invite.email_status === 'FAILED' ? 'Email Dispatch Failed' : 'Invitation Email Sent'}
+                             </strong>
+                             <span className="text-[10px] text-slate-455 font-mono block mt-0.5">
+                               {selectedCoordDetails.invite.sent_at ? formatTimestamp(selectedCoordDetails.invite.sent_at) : 'Pending sending'}
+                             </span>
+                           </div>
+                         </div>
 
-                    <div className="relative flex gap-2.5 text-xxs">
-                      <div className={`absolute -left-[20px] rounded-full h-3.5 w-3.5 border-2 border-white flex items-center justify-center shadow-sm ${
-                        selectedCoordDetails.invite.email_status === 'SENT' ? 'bg-emerald-500 text-white text-[7px]' :
-                        selectedCoordDetails.invite.email_status === 'FAILED' ? 'bg-rose-500 text-white text-[7px]' : 'bg-slate-300'
-                      }`}>
-                        {selectedCoordDetails.invite.email_status === 'SENT' ? '✓' : selectedCoordDetails.invite.email_status === 'FAILED' ? '!' : null}
-                      </div>
-                      <div className="space-y-0.5">
-                        <strong className="text-slate-800 block">
-                          {selectedCoordDetails.invite.email_status === 'FAILED' ? 'Email Send Failed' : 'Email Invitation Dispatched'}
-                        </strong>
-                        {selectedCoordDetails.invite.sent_at && (
-                          <span className="text-[10px] text-slate-400 font-mono block">Sent: {formatTimestamp(selectedCoordDetails.invite.sent_at)}</span>
-                        )}
-                        {selectedCoordDetails.invite.failed_at && (
-                          <span className="text-[10px] text-slate-400 font-mono block">Failed: {formatTimestamp(selectedCoordDetails.invite.failed_at)}</span>
-                        )}
-                      </div>
-                    </div>
+                         {/* Opened */}
+                         <div className="relative flex gap-3 text-xxs">
+                           <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                             selectedCoordDetails.invite.link_opened_at ? 'bg-emerald-500' : 'bg-slate-350'
+                           }`}>
+                             {selectedCoordDetails.invite.link_opened_at ? '✓' : ''}
+                           </div>
+                           <div>
+                             <strong className="text-slate-800">Invitation Link Opened</strong>
+                             <span className="text-[10px] text-slate-455 font-mono block mt-0.5">
+                               {selectedCoordDetails.invite.link_opened_at ? formatTimestamp(selectedCoordDetails.invite.link_opened_at) : 'Not opened yet'}
+                             </span>
+                           </div>
+                         </div>
 
-                    <div className="relative flex gap-2.5 text-xxs">
-                      <div className={`absolute -left-[20px] rounded-full h-3.5 w-3.5 border-2 border-white flex items-center justify-center shadow-sm ${
-                        selectedCoordDetails.invite.link_opened_at ? 'bg-emerald-500 text-white text-[7px]' : 'bg-slate-300'
-                      }`}>
-                        {selectedCoordDetails.invite.link_opened_at ? '✓' : null}
-                      </div>
-                      <div className="space-y-0.5">
-                        <strong className="text-slate-800 block">Link Opened</strong>
-                        {selectedCoordDetails.invite.link_opened_at ? (
-                          <span className="text-[10px] text-slate-400 font-mono block">Opened: {formatTimestamp(selectedCoordDetails.invite.link_opened_at)}</span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 block font-medium">Link not loaded yet.</span>
-                        )}
-                      </div>
-                    </div>
+                         {/* Accepted */}
+                         <div className="relative flex gap-3 text-xxs">
+                           <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                             selectedCoordDetails.invite.accepted_at ? 'bg-emerald-500' : 'bg-slate-350'
+                           }`}>
+                             {selectedCoordDetails.invite.accepted_at ? '✓' : ''}
+                           </div>
+                           <div>
+                             <strong className="text-slate-800">Invitation Accepted</strong>
+                             <span className="text-[10px] text-slate-455 font-mono block mt-0.5">
+                               {selectedCoordDetails.invite.accepted_at ? formatTimestamp(selectedCoordDetails.invite.accepted_at) : 'Not accepted yet'}
+                             </span>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
 
-                    <div className="relative flex gap-2.5 text-xxs">
-                      <div className={`absolute -left-[20px] rounded-full h-3.5 w-3.5 border-2 border-white flex items-center justify-center shadow-sm ${
-                        selectedCoordDetails.invite.accepted_at ? 'bg-emerald-500 text-white text-[7px]' : 'bg-slate-300'
-                      }`}>
-                        {selectedCoordDetails.invite.accepted_at ? '✓' : null}
-                      </div>
-                      <div className="space-y-0.5">
-                        <strong className="text-slate-800 block">Password Accept</strong>
-                        {selectedCoordDetails.invite.accepted_at ? (
-                          <span className="text-[10px] text-slate-400 font-mono block">Accepted: {formatTimestamp(selectedCoordDetails.invite.accepted_at)}</span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 block font-medium">Credentials pending accept.</span>
-                        )}
-                      </div>
-                    </div>
+                     {/* Section 2: Identity Verification */}
+                     <div className="space-y-4">
+                       <h4 className="text-xxs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">2. Identity Verification</h4>
+                       <div className="space-y-4 relative pl-5 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                         {/* Submitted */}
+                         <div className="relative flex gap-3 text-xxs">
+                           <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                             selectedCoordDetails.invite.verification_submitted_at ? 'bg-emerald-500' : 'bg-slate-350'
+                           }`}>
+                             {selectedCoordDetails.invite.verification_submitted_at ? '✓' : ''}
+                           </div>
+                           <div>
+                             <strong className="text-slate-800">Identity Details Submitted</strong>
+                             {selectedCoordDetails.invite.verification_submitted_at ? (
+                               <div className="space-y-1 mt-1">
+                                 <span className="text-[10px] text-slate-455 font-mono block">{formatTimestamp(selectedCoordDetails.invite.verification_submitted_at)}</span>
+                                 <div className="p-3 bg-slate-50 border border-slate-150 rounded-lg text-xxs space-y-1 font-semibold text-slate-600 max-w-xs leading-relaxed">
+                                   <div><strong className="text-slate-700">Phone:</strong> {selectedCoordDetails.invite.verification_data?.phone || 'N/A'}</div>
+                                   <div><strong className="text-slate-700">Employee ID:</strong> {selectedCoordDetails.invite.verification_data?.employee_id || 'N/A'}</div>
+                                   {selectedCoordDetails.invite.verification_data?.notes && (
+                                     <div><strong className="text-slate-700">Notes:</strong> {selectedCoordDetails.invite.verification_data.notes}</div>
+                                   )}
+                                 </div>
+                               </div>
+                             ) : (
+                               <span className="text-[10px] text-slate-455 block mt-0.5">Not submitted yet.</span>
+                             )}
+                           </div>
+                         </div>
 
-                    <div className="relative flex gap-2.5 text-xxs">
-                      <div className={`absolute -left-[20px] rounded-full h-3.5 w-3.5 border-2 border-white flex items-center justify-center shadow-sm ${
-                        selectedCoordDetails.invite.verification_submitted_at ? 'bg-emerald-500 text-white text-[7px]' : 'bg-slate-300'
-                      }`}>
-                        {selectedCoordDetails.invite.verification_submitted_at ? '✓' : null}
-                      </div>
-                      <div className="space-y-0.5">
-                        <strong className="text-slate-800 block">Verification Details</strong>
-                        {selectedCoordDetails.invite.verification_submitted_at ? (
-                          <span className="text-[10px] text-slate-400 font-mono block">Submitted: {formatTimestamp(selectedCoordDetails.invite.verification_submitted_at)}</span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 block font-medium">Verification pending submit.</span>
-                        )}
-                      </div>
-                    </div>
+                         {/* Under Review */}
+                         <div className="relative flex gap-3 text-xxs">
+                           <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                             ['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(selectedCoordDetails.invite.status) ? 'bg-emerald-500' : 'bg-slate-350'
+                           }`}>
+                             {['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(selectedCoordDetails.invite.status) ? '✓' : ''}
+                           </div>
+                           <div>
+                             <strong className="text-slate-800">Review In Progress</strong>
+                             <span className="text-[10px] text-slate-455 block mt-0.5">
+                               {['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(selectedCoordDetails.invite.status) ? 'Review initiated.' : 'Awaiting review start.'}
+                             </span>
+                           </div>
+                         </div>
 
-                    <div className="relative flex gap-2.5 text-xxs">
-                      <div className={`absolute -left-[20px] rounded-full h-3.5 w-3.5 border-2 border-white flex items-center justify-center shadow-sm ${
-                        selectedCoordDetails.invite.status === 'APPROVED' ? 'bg-emerald-500 text-white text-[7px]' :
-                        selectedCoordDetails.invite.status === 'REJECTED' ? 'bg-rose-500 text-white text-[7px]' : 'bg-slate-300'
-                      }`}>
-                        {selectedCoordDetails.invite.status === 'APPROVED' ? '✓' : selectedCoordDetails.invite.status === 'REJECTED' ? '!' : null}
-                      </div>
-                      <div className="space-y-0.5">
-                        <strong className="text-slate-800 block">Review Verdict</strong>
-                        {selectedCoordDetails.invite.reviewed_at ? (
-                          <span className="text-[10px] text-slate-450 block leading-relaxed font-semibold">
-                            Approved by Admin · {formatTimestamp(selectedCoordDetails.invite.reviewed_at)}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 block font-medium">Pending Admin Review decision.</span>
-                        )}
-                      </div>
-                    </div>
+                         {/* Approved / Rejected */}
+                         <div className="relative flex gap-3 text-xxs">
+                           <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                             selectedCoordDetails.invite.status === 'APPROVED' ? 'bg-emerald-500' :
+                             selectedCoordDetails.invite.status === 'REJECTED' ? 'bg-rose-500' : 'bg-slate-350'
+                           }`}>
+                             {selectedCoordDetails.invite.status === 'APPROVED' ? '✓' : selectedCoordDetails.invite.status === 'REJECTED' ? '!' : ''}
+                           </div>
+                           <div>
+                             <strong className="text-slate-800">Review Decision</strong>
+                             {selectedCoordDetails.invite.reviewed_at ? (
+                               <div className="mt-1 space-y-1 text-slate-750 font-semibold">
+                                 <span className="text-[10px] text-slate-455 font-mono block">{formatTimestamp(selectedCoordDetails.invite.reviewed_at)}</span>
+                                 <div>
+                                   Status: <span className={selectedCoordDetails.invite.status === 'APPROVED' ? 'text-emerald-600' : 'text-rose-600'}>{selectedCoordDetails.invite.status}</span>
+                                 </div>
+                                 {selectedCoordDetails.invite.rejection_reason && (
+                                   <div className="text-rose-600 italic bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-xxs leading-relaxed max-w-xs break-words">
+                                     Rejection Reason: {selectedCoordDetails.invite.rejection_reason}
+                                   </div>
+                                 )}
+                               </div>
+                             ) : (
+                               <span className="text-[10px] text-slate-455 block mt-0.5">Awaiting administrator verification check.</span>
+                             )}
+                           </div>
+                         </div>
+                       </div>
+                     </div>
 
-                    <div className="relative flex gap-2.5 text-xxs">
-                      <div className={`absolute -left-[20px] rounded-full h-3.5 w-3.5 border-2 border-white flex items-center justify-center shadow-sm ${
-                        selectedCoordDetails.invite.activated_at ? 'bg-emerald-500 text-white text-[7px]' : 'bg-slate-300'
-                      }`}>
-                        {selectedCoordDetails.invite.activated_at ? '✓' : null}
-                      </div>
-                      <div className="space-y-0.5">
-                        <strong className="text-slate-800 block">Activated</strong>
-                        {selectedCoordDetails.invite.activated_at ? (
-                          <span className="text-[10px] text-slate-400 font-mono block">Activated: {formatTimestamp(selectedCoordDetails.invite.activated_at)}</span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 block font-medium">Approved profile inactive.</span>
-                        )}
-                      </div>
-                    </div>
+                     {/* Section 3: Account Access */}
+                     <div className="space-y-4">
+                       <h4 className="text-xxs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">3. Account Access</h4>
+                       <div className="space-y-4 relative pl-5 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                         {/* Access Status */}
+                         <div className="relative flex gap-3 text-xxs">
+                           <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                             selectedCoordDetails.userAccount?.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-350'
+                           }`}>
+                             {selectedCoordDetails.userAccount?.status === 'ACTIVE' ? '✓' : ''}
+                           </div>
+                           <div>
+                             <strong className="text-slate-800">Account Activation Status</strong>
+                             <div className="mt-1 space-y-1 text-slate-700 font-semibold">
+                               <div>
+                                 Status: <span className={selectedCoordDetails.userAccount?.status === 'ACTIVE' ? 'text-emerald-600' : 'text-slate-500'}>
+                                   {selectedCoordDetails.userAccount?.status || 'INACTIVE'}
+                                 </span>
+                               </div>
+                               {selectedCoordDetails.invite.activated_at && (
+                                 <div className="text-[10px] text-slate-455 font-mono">
+                                   Activated: {formatTimestamp(selectedCoordDetails.invite.activated_at)}
+                                 </div>
+                               )}
+                               {selectedCoordDetails.invite.deactivated_at && (
+                                 <div className="text-[10px] text-slate-455 font-mono">
+                                   Deactivated: {formatTimestamp(selectedCoordDetails.invite.deactivated_at)}
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
 
-                    {selectedCoordDetails.invite.status === 'DELETED' && (
-                      <div className="relative flex gap-2.5 text-xxs">
-                        <div className="absolute -left-[20px] rounded-full bg-rose-500 h-3.5 w-3.5 border-2 border-white flex items-center justify-center shadow-sm">
-                          <span className="text-[7px] text-white">✓</span>
-                        </div>
-                        <div className="space-y-0.5">
-                          <strong className="text-rose-600 block">Invitation Deleted</strong>
-                          <span className="text-[10px] text-slate-400 font-mono block">Deleted: {formatTimestamp(selectedCoordDetails.invite.deleted_at)}</span>
-                          {selectedCoordDetails.invite.deleted_by_name && (
-                            <span className="text-[10px] text-slate-500 block">Deleted By: {selectedCoordDetails.invite.deleted_by_name}</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                   </div>
+                 </div>
+              </div>
 
                 {/* Recent Activities */}
                 {selectedCoordDetails.recentActivity && (

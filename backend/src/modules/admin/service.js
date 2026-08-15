@@ -268,12 +268,36 @@ export async function updateStaffStatus(actorId, targetUserId, { status }) {
     throw err;
   }
 
+  // Fetch user to match invitation
+  const userRes = await pool.query('SELECT email FROM users WHERE id = $1', [targetUserId]);
+  const userEmail = userRes.rows[0]?.email;
+
+  const targetRolesRes = await pool.query('SELECT role FROM user_roles WHERE user_id = $1', [targetUserId]);
+  const targetRoles = targetRolesRes.rows.map(r => r.role);
+  const isCoordinator = targetRoles.includes('COORDINATOR');
+  const isTargetAdmin = targetRoles.includes('ADMIN');
+
+  if (status === 'ACTIVE' && (isCoordinator || isTargetAdmin)) {
+    const invitation = await adminRepository.getInvitationByEmail(userEmail);
+    if (!invitation) {
+      const err = new Error('Cannot activate staff account without a valid invitation.');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (invitation.status === 'REJECTED') {
+      const err = new Error('Cannot activate account. Staff verification has been rejected.');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (invitation.status !== 'APPROVED') {
+      const err = new Error(`Cannot activate account. Staff identity verification status must be APPROVED. Current status: ${invitation.status}`);
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
   // If deactivating, run safety check
   if (status === 'INACTIVE') {
-    // Check if target is Admin
-    const rolesRes = await pool.query('SELECT role FROM user_roles WHERE user_id = $1', [targetUserId]);
-    const isTargetAdmin = rolesRes.rows.some(r => r.role === 'ADMIN');
-
     if (isTargetAdmin) {
       const activeAdminsCount = await adminRepository.countActiveAdmins();
       if (activeAdminsCount <= 1) {
@@ -283,14 +307,6 @@ export async function updateStaffStatus(actorId, targetUserId, { status }) {
       }
     }
   }
-
-  // Fetch user to match invitation
-  const userRes = await pool.query('SELECT email FROM users WHERE id = $1', [targetUserId]);
-  const userEmail = userRes.rows[0]?.email;
-
-  const targetRolesRes = await pool.query('SELECT role FROM user_roles WHERE user_id = $1', [targetUserId]);
-  const targetRoles = targetRolesRes.rows.map(r => r.role);
-  const isCoordinator = targetRoles.includes('COORDINATOR');
 
   await adminRepository.updateUserStatus(targetUserId, status);
 

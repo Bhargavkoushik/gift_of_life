@@ -423,9 +423,9 @@ export default function AdminManagement() {
 
                         <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-xxs text-slate-500 font-medium">
                           <div>
-                            <span className="text-slate-400 block uppercase font-bold text-[9px]">Invitation Status</span>
+                            <span className="text-slate-400 block uppercase font-bold text-[9px]">Verification / Account Status</span>
                             <span className={`inline-flex rounded-full px-2 py-0.5 mt-0.5 border text-[10px] font-bold ${stateColors[computedState]}`}>
-                              {computedState.toUpperCase()}
+                              {computedState === 'Approved' ? 'Approved / Inactive' : computedState === 'Active' ? 'Approved / Active' : computedState.toUpperCase()}
                             </span>
                           </div>
                           <div>
@@ -563,171 +563,187 @@ export default function AdminManagement() {
               </button>
             </div>
 
-            {/* Visual Vertical Timeline */}
-            <div className="space-y-6 relative pl-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+            {/* Grouped Vertical Timeline */}
+            <div className="space-y-6">
               
-              {/* Step 1: Created */}
-              <div className="relative flex gap-3 text-xs">
-                <div className="absolute -left-[20px] rounded-full bg-emerald-500 h-4 w-4 border-2 border-white flex items-center justify-center shadow-sm">
-                  <span className="text-[8px] text-white">✓</span>
-                </div>
-                <div className="space-y-0.5">
-                  <strong className="text-slate-800 block">Invitation Created</strong>
-                  <span className="text-xxs text-slate-400 font-mono block">
-                    {formatTimestamp(selectedInvite.invite.created_at)}
-                  </span>
+              {/* Section 1: Invitation Lifecycle */}
+              <div className="space-y-4">
+                <h4 className="text-xxs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">1. Invitation Lifecycle</h4>
+                <div className="space-y-4 relative pl-5 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                  {/* Created */}
+                  <div className="relative flex gap-3 text-xxs">
+                    <div className="absolute -left-[21px] rounded-full bg-emerald-500 h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white">✓</div>
+                    <div>
+                      <strong className="text-slate-800">Invitation Created</strong>
+                      <span className="text-[10px] text-slate-450 font-mono block mt-0.5">{formatTimestamp(selectedInvite.invite.created_at)}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Sent */}
+                  <div className="relative flex gap-3 text-xxs">
+                    <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                      selectedInvite.invite.email_status === 'SENT' ? 'bg-emerald-500' :
+                      selectedInvite.invite.email_status === 'FAILED' ? 'bg-rose-500' : 'bg-slate-350'
+                    }`}>
+                      {selectedInvite.invite.email_status === 'SENT' ? '✓' : selectedInvite.invite.email_status === 'FAILED' ? '!' : ''}
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">
+                        {selectedInvite.invite.email_status === 'FAILED' ? 'Email Dispatch Failed' : 'Invitation Email Sent'}
+                      </strong>
+                      <span className="text-[10px] text-slate-450 font-mono block mt-0.5">
+                        {selectedInvite.invite.sent_at ? formatTimestamp(selectedInvite.invite.sent_at) : 'Pending sending'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Opened */}
+                  <div className="relative flex gap-3 text-xxs">
+                    <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                      selectedInvite.invite.link_opened_at ? 'bg-emerald-500' : 'bg-slate-350'
+                    }`}>
+                      {selectedInvite.invite.link_opened_at ? '✓' : ''}
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">Invitation Link Opened</strong>
+                      <span className="text-[10px] text-slate-450 font-mono block mt-0.5">
+                        {selectedInvite.invite.link_opened_at ? formatTimestamp(selectedInvite.invite.link_opened_at) : 'Not opened yet'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Accepted */}
+                  <div className="relative flex gap-3 text-xxs">
+                    <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                      selectedInvite.invite.accepted_at ? 'bg-emerald-500' : 'bg-slate-350'
+                    }`}>
+                      {selectedInvite.invite.accepted_at ? '✓' : ''}
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">Invitation Accepted</strong>
+                      <span className="text-[10px] text-slate-450 font-mono block mt-0.5">
+                        {selectedInvite.invite.accepted_at ? formatTimestamp(selectedInvite.invite.accepted_at) : 'Not accepted yet'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Step 2: Email status */}
-              <div className="relative flex gap-3 text-xs">
-                <div className={`absolute -left-[20px] rounded-full h-4 w-4 border-2 border-white flex items-center justify-center shadow-sm ${
-                  selectedInvite.invite.email_status === 'SENT' ? 'bg-emerald-500 text-white text-[8px]' :
-                  selectedInvite.invite.email_status === 'FAILED' ? 'bg-rose-500 text-white text-[8px]' : 'bg-slate-300'
-                }`}>
-                  {selectedInvite.invite.email_status === 'SENT' ? '✓' : selectedInvite.invite.email_status === 'FAILED' ? '!' : null}
-                </div>
-                <div className="space-y-0.5">
-                  <strong className="text-slate-800 block">
-                    {selectedInvite.invite.email_status === 'FAILED' ? 'Email Dispatch Failed' : 'Email Invitation Dispatched'}
-                  </strong>
-                  {selectedInvite.invite.sent_at && (
-                    <span className="text-xxs text-slate-400 font-mono block">Sent: {formatTimestamp(selectedInvite.invite.sent_at)}</span>
-                  )}
-                  {selectedInvite.invite.failed_at && (
-                    <span className="text-xxs text-slate-400 font-mono block">Failed: {formatTimestamp(selectedInvite.invite.failed_at)}</span>
-                  )}
-                  {selectedInvite.invite.failure_reason && (
-                    <span className="text-xxs text-rose-600 block bg-rose-50 p-2 rounded-lg border border-rose-100 max-w-xs break-words">
-                      Reason: {selectedInvite.invite.failure_reason}
-                    </span>
-                  )}
+              {/* Section 2: Identity Verification */}
+              <div className="space-y-4">
+                <h4 className="text-xxs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">2. Identity Verification</h4>
+                <div className="space-y-4 relative pl-5 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                  {/* Submitted */}
+                  <div className="relative flex gap-3 text-xxs">
+                    <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                      selectedInvite.invite.verification_submitted_at ? 'bg-emerald-500' : 'bg-slate-350'
+                    }`}>
+                      {selectedInvite.invite.verification_submitted_at ? '✓' : ''}
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">Identity Details Submitted</strong>
+                      {selectedInvite.invite.verification_submitted_at ? (
+                        <div className="space-y-1 mt-1">
+                          <span className="text-[10px] text-slate-450 font-mono block">{formatTimestamp(selectedInvite.invite.verification_submitted_at)}</span>
+                          <div className="p-3 bg-slate-50 border border-slate-150 rounded-lg text-xxs space-y-1 font-semibold text-slate-600 max-w-xs leading-relaxed">
+                            <div><strong className="text-slate-700">Phone:</strong> {selectedInvite.invite.verification_data?.phone || 'N/A'}</div>
+                            <div><strong className="text-slate-700">Employee ID:</strong> {selectedInvite.invite.verification_data?.employee_id || 'N/A'}</div>
+                            {selectedInvite.invite.verification_data?.notes && (
+                              <div><strong className="text-slate-700">Notes:</strong> {selectedInvite.invite.verification_data.notes}</div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-450 block mt-0.5">Not submitted yet.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Under Review */}
+                  <div className="relative flex gap-3 text-xxs">
+                    <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                      ['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(selectedInvite.invite.status) ? 'bg-emerald-500' : 'bg-slate-350'
+                    }`}>
+                      {['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(selectedInvite.invite.status) ? '✓' : ''}
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">Review In Progress</strong>
+                      <span className="text-[10px] text-slate-450 block mt-0.5">
+                        {['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(selectedInvite.invite.status) ? 'Review initiated.' : 'Awaiting review start.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Approved / Rejected */}
+                  <div className="relative flex gap-3 text-xxs">
+                    <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                      selectedInvite.invite.status === 'APPROVED' ? 'bg-emerald-500' :
+                      selectedInvite.invite.status === 'REJECTED' ? 'bg-rose-500' : 'bg-slate-350'
+                    }`}>
+                      {selectedInvite.invite.status === 'APPROVED' ? '✓' : selectedInvite.invite.status === 'REJECTED' ? '!' : ''}
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">Review Decision</strong>
+                      {selectedInvite.invite.reviewed_at ? (
+                        <div className="mt-1 space-y-1 text-slate-750 font-semibold">
+                          <span className="text-[10px] text-slate-450 font-mono block">{formatTimestamp(selectedInvite.invite.reviewed_at)}</span>
+                          <div>
+                            Status: <span className={selectedInvite.invite.status === 'APPROVED' ? 'text-emerald-600' : 'text-rose-600'}>{selectedInvite.invite.status}</span>
+                          </div>
+                          {selectedInvite.invite.rejection_reason && (
+                            <div className="text-rose-600 italic bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-xxs leading-relaxed max-w-xs break-words">
+                              Rejection Reason: {selectedInvite.invite.rejection_reason}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-450 block mt-0.5">Awaiting administrator verification check.</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Step 3: Link opened */}
-              <div className="relative flex gap-3 text-xs">
-                <div className={`absolute -left-[20px] rounded-full h-4 w-4 border-2 border-white flex items-center justify-center shadow-sm ${
-                  selectedInvite.invite.link_opened_at ? 'bg-emerald-500 text-white text-[8px]' : 'bg-slate-300'
-                }`}>
-                  {selectedInvite.invite.link_opened_at ? '✓' : null}
-                </div>
-                <div className="space-y-0.5">
-                  <strong className="text-slate-800 block">Invitation Link Opened</strong>
-                  {selectedInvite.invite.link_opened_at ? (
-                    <span className="text-xxs text-slate-400 font-mono block">Visited: {formatTimestamp(selectedInvite.invite.link_opened_at)}</span>
-                  ) : (
-                    <span className="text-xxs text-slate-400 block font-medium">Link has not been opened yet.</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Step 4: Accepted */}
-              <div className="relative flex gap-3 text-xs">
-                <div className={`absolute -left-[20px] rounded-full h-4 w-4 border-2 border-white flex items-center justify-center shadow-sm ${
-                  selectedInvite.invite.accepted_at ? 'bg-emerald-500 text-white text-[8px]' : 'bg-slate-300'
-                }`}>
-                  {selectedInvite.invite.accepted_at ? '✓' : null}
-                </div>
-                <div className="space-y-0.5">
-                  <strong className="text-slate-800 block">Invitation Accepted</strong>
-                  {selectedInvite.invite.accepted_at ? (
-                    <span className="text-xxs text-slate-400 font-mono block">Accepted: {formatTimestamp(selectedInvite.invite.accepted_at)}</span>
-                  ) : (
-                    <span className="text-xxs text-slate-400 block font-medium">Account password credentials not configured.</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Step 5: Verification submitted */}
-              <div className="relative flex gap-3 text-xs">
-                <div className={`absolute -left-[20px] rounded-full h-4 w-4 border-2 border-white flex items-center justify-center shadow-sm ${
-                  selectedInvite.invite.verification_submitted_at ? 'bg-emerald-500 text-white text-[8px]' : 'bg-slate-300'
-                }`}>
-                  {selectedInvite.invite.verification_submitted_at ? '✓' : null}
-                </div>
-                <div className="space-y-0.5">
-                  <strong className="text-slate-800 block">Identity Verification Details Submitted</strong>
-                  {selectedInvite.invite.verification_submitted_at ? (
-                    <div className="space-y-1.5">
-                      <span className="text-xxs text-slate-400 font-mono block">Submitted: {formatTimestamp(selectedInvite.invite.verification_submitted_at)}</span>
-                      <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-xxs space-y-1 leading-relaxed max-w-xs">
-                        <div><strong className="text-slate-700">Staff Phone:</strong> {selectedInvite.invite.verification_data?.phone || 'N/A'}</div>
-                        <div><strong className="text-slate-700">Employee ID:</strong> {selectedInvite.invite.verification_data?.employee_id || 'N/A'}</div>
-                        <div><strong className="text-slate-700">Notes:</strong> {selectedInvite.invite.verification_data?.notes || 'None'}</div>
+              {/* Section 3: Account Access */}
+              <div className="space-y-4">
+                <h4 className="text-xxs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">3. Account Access</h4>
+                <div className="space-y-4 relative pl-5 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                  {/* Access Status */}
+                  <div className="relative flex gap-3 text-xxs">
+                    <div className={`absolute -left-[21px] rounded-full h-3.5 w-3.5 border border-white flex items-center justify-center shadow-sm text-[8px] text-white ${
+                      selectedInvite.userAccount?.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-350'
+                    }`}>
+                      {selectedInvite.userAccount?.status === 'ACTIVE' ? '✓' : ''}
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">Account Activation Status</strong>
+                      <div className="mt-1 space-y-1 text-slate-700 font-semibold">
+                        <div>
+                          Status: <span className={selectedInvite.userAccount?.status === 'ACTIVE' ? 'text-emerald-600' : 'text-slate-500'}>
+                            {selectedInvite.userAccount?.status || 'INACTIVE'}
+                          </span>
+                        </div>
+                        {selectedInvite.invite.activated_at && (
+                          <div className="text-[10px] text-slate-450">
+                            Activated: {formatTimestamp(selectedInvite.invite.activated_at)}
+                          </div>
+                        )}
+                        {selectedInvite.invite.deactivated_at && (
+                          <div className="text-[10px] text-slate-450">
+                            Deactivated: {formatTimestamp(selectedInvite.invite.deactivated_at)}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ) : (
-                    <span className="text-xxs text-slate-400 block font-medium">Verification details not submitted.</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Step 6: Reviewed (Approved / Rejected) */}
-              <div className="relative flex gap-3 text-xs">
-                <div className={`absolute -left-[20px] rounded-full h-4 w-4 border-2 border-white flex items-center justify-center shadow-sm ${
-                  selectedInvite.invite.status === 'APPROVED' ? 'bg-emerald-500 text-white text-[8px]' :
-                  selectedInvite.invite.status === 'REJECTED' ? 'bg-rose-500 text-white text-[8px]' : 'bg-slate-300'
-                }`}>
-                  {selectedInvite.invite.status === 'APPROVED' ? '✓' : selectedInvite.invite.status === 'REJECTED' ? '!' : null}
-                </div>
-                <div className="space-y-0.5">
-                  <strong className="text-slate-800 block">Verification Decision Review</strong>
-                  {selectedInvite.invite.reviewed_at ? (
-                    <div className="space-y-1">
-                      <span className="text-xxs text-slate-400 font-mono block">
-                        Reviewed: {formatTimestamp(selectedInvite.invite.reviewed_at)}
-                      </span>
-                      <span className="text-xxs text-slate-500 block">
-                        Decision: <strong className={selectedInvite.invite.status === 'APPROVED' ? 'text-emerald-600' : 'text-rose-600'}>{selectedInvite.invite.status}</strong>
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xxs text-slate-400 block font-medium">Awaiting administrator verification check.</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Step 7: Activated */}
-              <div className="relative flex gap-3 text-xs">
-                <div className={`absolute -left-[20px] rounded-full h-4 w-4 border-2 border-white flex items-center justify-center shadow-sm ${
-                  selectedInvite.invite.activated_at ? 'bg-emerald-500 text-white text-[8px]' : 'bg-slate-300'
-                }`}>
-                  {selectedInvite.invite.activated_at ? '✓' : null}
-                </div>
-                <div className="space-y-0.5">
-                  <strong className="text-slate-800 block">Account Activated</strong>
-                  {selectedInvite.invite.activated_at ? (
-                    <span className="text-xxs text-slate-400 font-mono block">Activated: {formatTimestamp(selectedInvite.invite.activated_at)}</span>
-                  ) : (
-                    <span className="text-xxs text-slate-400 block font-medium">Approved admin account has not been activated.</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Step 8: Deleted */}
-              {selectedInvite.invite.status === 'DELETED' && (
-                <div className="relative flex gap-3 text-xs">
-                  <div className="absolute -left-[20px] rounded-full bg-rose-500 h-4 w-4 border-2 border-white flex items-center justify-center shadow-sm">
-                    <span className="text-[8px] text-white">✓</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    <strong className="text-rose-600 block">Invitation Deleted</strong>
-                    <span className="text-xxs text-slate-450 block font-mono">
-                      Deleted: {formatTimestamp(selectedInvite.invite.deleted_at)}
-                    </span>
-                    {selectedInvite.invite.deleted_by_name && (
-                      <span className="text-xxs text-slate-450 block font-sans">
-                        Deleted By: <strong>{selectedInvite.invite.deleted_by_name}</strong>
-                      </span>
-                    )}
                   </div>
                 </div>
-              )}
+              </div>
 
             </div>
           </div>
         </div>
+      )}
+          </div>
       )}
 
       {/* REVIEW VERIFICATION MODAL */}
