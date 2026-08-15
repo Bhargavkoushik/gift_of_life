@@ -43,15 +43,20 @@ export async function loginUser({ email, password }) {
     throw err;
   }
 
+  // Fetch roles
+  const roles = await authRepository.getUserRoles(user.id);
+
   // Check if account suspended/inactive
   if (user.status !== 'ACTIVE') {
+    if (roles.includes('ADMIN')) {
+      const err = new Error('Your administrator account has been approved but is not activated yet. Please contact an active administrator.');
+      err.statusCode = 403;
+      throw err;
+    }
     const err = new Error(`User account is ${user.status.toLowerCase()}`);
     err.statusCode = 403;
     throw err;
   }
-
-  // Fetch roles
-  const roles = await authRepository.getUserRoles(user.id);
 
   // Check if first login
   const isFirstLogin = !user.first_login_at;
