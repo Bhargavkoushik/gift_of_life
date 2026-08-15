@@ -743,8 +743,6 @@ export default function AdminManagement() {
           </div>
         </div>
       )}
-          </div>
-      )}
 
       {/* REVIEW VERIFICATION MODAL */}
       {showReviewModal && reviewInviteId && (

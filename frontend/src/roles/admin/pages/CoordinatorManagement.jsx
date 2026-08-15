@@ -945,7 +945,6 @@ export default function CoordinatorManagement() {
 
                    </div>
                  </div>
-              </div>
 
                 {/* Recent Activities */}
                 {selectedCoordDetails.recentActivity && (
