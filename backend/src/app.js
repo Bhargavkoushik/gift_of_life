@@ -2,6 +2,12 @@ import cors from 'cors';
 import express from 'express';
 import pool from './database/connection.js';
 import authRoutes from './modules/auth/routes.js';
+import donorRoutes from './modules/donors/routes.js';
+import coordinatorRoutes from './modules/coordinators/routes.js';
+import adminRoutes from './modules/admin/routes.js';
+import receiverRoutes from './modules/receivers/routes.js';
+import authMiddleware from './middleware/auth.js';
+import requireRole from './middleware/role.js';
 
 const app = express();
 
@@ -9,6 +15,10 @@ app.use(express.json());
 app.use(cors());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/donor', authMiddleware, requireRole('DONOR'), donorRoutes);
+app.use('/api/coordinator', authMiddleware, requireRole('COORDINATOR'), coordinatorRoutes);
+app.use('/api/admin', authMiddleware, requireRole('ADMIN'), adminRoutes);
+app.use('/api/receiver', authMiddleware, requireRole('RECEIVER'), receiverRoutes);
 
 app.get('/api/health', (request, response) => {
 	response.json({ status: 'ok' });

@@ -149,6 +149,8 @@ export function AuthProvider({ children }) {
     }
   };
 
+
+
   const switchWorkspace = (role) => {
     if (roles.includes(role)) {
       setCurrentWorkspace(role);

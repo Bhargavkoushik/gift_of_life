@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
+import pool from '../database/connection.js';
 
-export default function authMiddleware(req, res, next) {
+export default async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
@@ -20,6 +21,23 @@ export default function authMiddleware(req, res, next) {
     }
 
     const decoded = jwt.verify(token, secret);
+
+    // Verify user exists and is active in database
+    const userRes = await pool.query('SELECT status FROM users WHERE id = $1', [decoded.id]);
+    if (userRes.rows.length === 0) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'User account not found'
+      });
+    }
+
+    if (userRes.rows[0].status !== 'ACTIVE') {
+      return res.status(401).json({
+        status: 'error',
+        message: `User account is ${userRes.rows[0].status.toLowerCase()}`
+      });
+    }
+
     req.user = {
       id: decoded.id,
       roles: decoded.roles || []

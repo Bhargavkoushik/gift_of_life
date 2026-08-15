@@ -30,6 +30,8 @@ const receiverSchema = z.object({
   receiver_type: z.enum(['INDIVIDUAL', 'PATIENT_ATTENDANT', 'HOSPITAL']),
 });
 
+
+
 const bloodGroups = [
   { id: 1, code: 'A+' },
   { id: 2, code: 'A-' },
@@ -100,6 +102,8 @@ export default function SelectRole() {
     }
   };
 
+
+
   const handleLogout = () => {
     logout();
     navigate('/', { replace: true });
@@ -130,7 +134,7 @@ export default function SelectRole() {
 
       {/* Main role workspaces select list */}
       {!activeForm && (
-        <div className="grid md:grid-cols-2 gap-6 mt-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
           {/* DONOR CARD */}
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
             <div>
@@ -191,42 +195,50 @@ export default function SelectRole() {
             </div>
           </article>
 
-          {/* PRIVILEGED ROLES SECTION */}
-          {(roles.includes('COORDINATOR') || roles.includes('ADMIN')) && (
-            <div className="md:col-span-2 mt-4 space-y-4">
-              <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Privileged Dashboards</h4>
-              <div className="grid md:grid-cols-2 gap-6">
-                {roles.includes('COORDINATOR') && (
-                  <article className="rounded-2xl border border-blue-200 bg-blue-50/20 p-5 flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-blue-900">Blood Bank Coordinator</h3>
-                      <p className="text-sm text-blue-700 mt-1">Review matches, call donors, and verify donations.</p>
-                    </div>
-                    <button
-                      onClick={() => handleSelectRole('COORDINATOR')}
-                      className="mt-4 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                    >
-                      Enter Coordinator Area
-                    </button>
-                  </article>
-                )}
-
-                {roles.includes('ADMIN') && (
-                  <article className="rounded-2xl border border-purple-200 bg-purple-50/20 p-5 flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-purple-900">System Admin</h3>
-                      <p className="text-sm text-purple-700 mt-1">Full access to logs, configurations, and inventory.</p>
-                    </div>
-                    <button
-                      onClick={() => handleSelectRole('ADMIN')}
-                      className="mt-4 rounded-lg bg-purple-600 py-2 text-sm font-semibold text-white hover:bg-purple-700"
-                    >
-                      Enter Admin Console
-                    </button>
-                  </article>
-                )}
+          {/* COORDINATOR WORKSPACE CARD (Only visible if coordinator role is assigned) */}
+          {roles.includes('COORDINATOR') && (
+            <article className="rounded-2xl border border-blue-200 bg-blue-50/10 p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Active Profile
+                </span>
+                <h3 className="mt-4 text-lg font-bold text-slate-900">Coordinator Workspace</h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Coordinate blood requests, confirm donor screening results, and log completed donations.
+                </p>
               </div>
-            </div>
+              <div className="mt-6">
+                <button
+                  onClick={() => handleSelectRole('COORDINATOR')}
+                  className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Enter Coordinator Dashboard
+                </button>
+              </div>
+            </article>
+          )}
+
+          {/* ADMIN CONSOLE CARD (Only visible if admin role is assigned) */}
+          {roles.includes('ADMIN') && (
+            <article className="rounded-2xl border border-purple-200 bg-purple-50/10 p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-purple-100 text-purple-700">
+                  Active Profile
+                </span>
+                <h3 className="mt-4 text-lg font-bold text-slate-900">Admin Console</h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Full access to audit logs, staff management, invitations, and trust statistics.
+                </p>
+              </div>
+              <div className="mt-6">
+                <button
+                  onClick={() => handleSelectRole('ADMIN')}
+                  className="w-full rounded-lg bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-700"
+                >
+                  Enter Admin Dashboard
+                </button>
+              </div>
+            </article>
           )}
         </div>
       )}
@@ -544,6 +556,7 @@ export default function SelectRole() {
           </form>
         </div>
       )}
+
 
       {!activeForm && (
         <div className="mt-10 pt-8 border-t border-slate-200 max-w-md mx-auto">

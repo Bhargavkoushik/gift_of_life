@@ -45,6 +45,16 @@ export const becomeReceiver = async (receiverData) => {
   return response.data;
 };
 
+export const validateInvitation = async (token) => {
+  const response = await api.get(`/auth/invitations/validate?token=${token}`);
+  return response.data;
+};
+
+export const acceptInvitation = async (invitationData) => {
+  const response = await api.post('/auth/invitations/accept', invitationData);
+  return response.data;
+};
+
 export const forgotPassword = async (identifier) => {
   const response = await api.post('/auth/forgot-password', { identifier });
   return response.data;

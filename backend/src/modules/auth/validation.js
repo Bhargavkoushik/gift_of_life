@@ -64,3 +64,9 @@ export const becomeReceiverSchema = z.object({
   pincode: z.string().min(4, 'Pincode must be at least 4 characters long').max(20),
   receiver_type: z.enum(['INDIVIDUAL', 'PATIENT_ATTENDANT', 'HOSPITAL']).default('INDIVIDUAL'),
 });
+
+export const becomeCoordinatorSchema = z.object({
+  area: z.string().min(2, 'Area must be at least 2 characters long').max(100),
+  district: z.string().min(2, 'District must be at least 2 characters long').max(100),
+  state: z.string().min(2, 'State must be at least 2 characters long').max(100)
+});
