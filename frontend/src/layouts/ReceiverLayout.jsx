@@ -10,6 +10,7 @@ const receiverLinks = [
   { to: '/receiver/requests', label: 'My Requests' },
   { to: '/receiver/history', label: 'Request History' },
   { to: '/receiver/notifications', label: 'Notifications' },
+  { to: '/receiver/profile', label: 'My Profile' },
 ];
 
 export default function ReceiverLayout() {

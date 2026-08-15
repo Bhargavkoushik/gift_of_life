@@ -10,6 +10,15 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
 });
 
+// Test the connection immediately on startup
+pool.query('SELECT 1')
+  .then(() => {
+    console.log('database is connected');
+  })
+  .catch((err) => {
+    console.error('database connection failed:', err.message);
+  });
+
 // Reusable connection query helper
 export const query = (text, params) => pool.query(text, params);
 

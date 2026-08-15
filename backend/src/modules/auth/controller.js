@@ -1,5 +1,5 @@
 import * as authService from './service.js';
-import { registerSchema, loginSchema, becomeDonorSchema, becomeReceiverSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from './validation.js';
+import { registerSchema, loginSchema, becomeDonorSchema, becomeReceiverSchema, becomeCoordinatorSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from './validation.js';
 
 export async function register(req, res, next) {
   try {
@@ -134,6 +134,34 @@ export async function changePassword(req, res, next) {
         message: 'New password must satisfy all password requirements and passwords must match.'
       });
     }
+    next(error);
+  }
+}
+
+export async function validateInvitation(req, res, next) {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+    const invitation = await authService.validateInvitationToken(token);
+    return res.status(200).json({ invitation });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function acceptInvitation(req, res, next) {
+  try {
+    const { token, password, phone, employee_id, notes, id_card_image } = req.body;
+    if (!token || !password || !phone) {
+      return res.status(400).json({ message: 'Token, password, and phone are required' });
+    }
+    const result = await authService.acceptInvitationAndSubmitVerification({
+      token, password, phone, employee_id, notes, id_card_image
+    });
+    return res.status(200).json(result);
+  } catch (error) {
     next(error);
   }
 }

@@ -53,8 +53,20 @@ export async function loginUser({ email, password }) {
   // Fetch roles
   const roles = await authRepository.getUserRoles(user.id);
 
+  // Check if first login
+  const isFirstLogin = !user.first_login_at;
+
   // Update last login
   await authRepository.updateLastLogin(user.id);
+
+  // Audit log for Admin logins
+  if (roles.includes('ADMIN')) {
+    await pool.query(
+      `INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, $2, 'USER', $1, $3)`,
+      [user.id, isFirstLogin ? 'ADMIN_FIRST_LOGIN' : 'ADMIN_LOGIN', JSON.stringify({ email: user.email })]
+    );
+  }
 
   // Generate JWT token
   const secret = process.env.JWT_SECRET;
@@ -297,4 +309,134 @@ export async function changeUserPassword(userId, { currentPassword, newPassword 
   await authRepository.updateUserPassword(userId, passwordHash);
 
   return { message: 'Password changed successfully' };
+}
+
+export async function validateInvitationToken(token) {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const result = await pool.query(
+    `SELECT id, email, name, role, status, expires_at, created_by, link_opened_at 
+     FROM internal_invitations 
+     WHERE token_hash = $1`,
+    [tokenHash]
+  );
+  const invitation = result.rows[0];
+
+  if (!invitation) {
+    const err = new Error('Invalid invitation token');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (new Date(invitation.expires_at) < new Date()) {
+    const err = new Error('Invitation token has expired');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (invitation.status === 'DELETED') {
+    const err = new Error('Invitation no longer available. This invitation has been revoked by the Trust administrator.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (invitation.status !== 'INVITED' && invitation.status !== 'EMAIL_FAILED') {
+    const err = new Error(`Invitation has already been accepted or processed (Status: ${invitation.status})`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Update link_opened_at if not set and write audit log
+  if (!invitation.link_opened_at) {
+    await pool.query(
+      `UPDATE internal_invitations 
+       SET link_opened_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1`,
+      [invitation.id]
+    );
+    const isCoord = invitation.role === 'COORDINATOR';
+    const actionStr = isCoord ? 'COORDINATOR_INVITATION_OPENED' : 'ADMIN_INVITATION_OPENED';
+    await pool.query(
+      `INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, $2, 'INVITATION', $3, $4)`,
+      [invitation.created_by, actionStr, invitation.id, JSON.stringify({ email: invitation.email, role: invitation.role })]
+    );
+  }
+
+  return invitation;
+}
+
+export async function acceptInvitationAndSubmitVerification({ token, password, phone, employee_id, notes, id_card_image }) {
+  const invitation = await validateInvitationToken(token);
+
+  // Hash password
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Create or update user as INACTIVE initially
+    const userExistRes = await client.query('SELECT id FROM users WHERE email = $1', [invitation.email]);
+    let userId;
+
+    if (userExistRes.rows.length > 0) {
+      userId = userExistRes.rows[0].id;
+      // Update details but keep status INACTIVE until Admin approves
+      await client.query(
+        `UPDATE users 
+         SET name = $1, phone = $2, password_hash = $3, status = 'INACTIVE', updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $4`,
+         [invitation.name, phone, passwordHash, userId]
+      );
+    } else {
+      const insertRes = await client.query(
+        `INSERT INTO users (name, email, phone, password_hash, status)
+         VALUES ($1, $2, $3, $4, 'INACTIVE')
+         RETURNING id`,
+        [invitation.name, invitation.email, phone, passwordHash]
+      );
+      userId = insertRes.rows[0].id;
+    }
+
+    // 2. Update invitation status and verification data
+    const verificationData = {
+      employee_id,
+      notes,
+      id_card_image,
+      phone
+    };
+
+    await client.query(
+      `UPDATE internal_invitations 
+       SET status = 'VERIFICATION_SUBMITTED', accepted_by = $1, verification_data = $2, 
+           accepted_at = CURRENT_TIMESTAMP, verification_submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $3`,
+      [userId, JSON.stringify(verificationData), invitation.id]
+    );
+
+    // 3. Log to audit log
+    const isCoord = invitation.role === 'COORDINATOR';
+    const acceptAction = isCoord ? 'COORDINATOR_INVITATION_ACCEPTED' : 'ADMIN_INVITATION_ACCEPTED';
+    const submitAction = isCoord ? 'COORDINATOR_VERIFICATION_SUBMITTED' : 'ADMIN_VERIFICATION_SUBMITTED';
+
+    await client.query(
+      `INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, $2, 'INVITATION', $3, $4)`,
+      [userId, acceptAction, invitation.id, JSON.stringify({ email: invitation.email, role: invitation.role })]
+    );
+
+    await client.query(
+      `INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, $2, 'INVITATION', $3, $4)`,
+      [userId, submitAction, invitation.id, JSON.stringify({ email: invitation.email, role: invitation.role })]
+    );
+
+    await client.query('COMMIT');
+    return { message: 'Verification details submitted successfully. Please wait for administrator approval.' };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

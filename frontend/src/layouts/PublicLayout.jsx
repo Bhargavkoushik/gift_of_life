@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 const baseLinks = [
   { to: '/', label: 'Home', end: true },
   { to: '/blood-availability', label: 'Blood Availability' },
-  { to: '/blood-banks', label: 'Blood Banks' },
   { to: '/blood-camps', label: 'Blood Camps' },
 ];
 
@@ -42,7 +41,6 @@ export default function PublicLayout() {
             <ul className="space-y-2 text-xs font-medium">
               <li><Link to="/" className="hover:text-brand-red transition">Home</Link></li>
               <li><Link to="/blood-availability" className="hover:text-brand-red transition">Blood Availability</Link></li>
-              <li><Link to="/blood-banks" className="hover:text-brand-red transition">Blood Banks</Link></li>
               <li><Link to="/blood-camps" className="hover:text-brand-red transition">Blood Camps</Link></li>
               <li><Link to="/donation-eligibility" className="hover:text-brand-red transition">Donation Eligibility</Link></li>
               <li><Link to="/how-donation-works" className="hover:text-brand-red transition">How Donation Works</Link></li>

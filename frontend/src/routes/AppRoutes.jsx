@@ -8,7 +8,6 @@ import PublicLayout from '../layouts/PublicLayout';
 import ReceiverLayout from '../layouts/ReceiverLayout';
 import About from '../pages/public/About';
 import BloodAvailability from '../pages/public/BloodAvailability';
-import BloodBanks from '../pages/public/BloodBanks';
 import BloodCamps from '../pages/public/BloodCamps';
 import DonationEligibility from '../pages/public/DonationEligibility';
 import Home from '../pages/public/Home';
@@ -19,6 +18,7 @@ import SelectRole from '../pages/public/SelectRole';
 import ForgotPassword from '../pages/public/ForgotPassword';
 import ResetPassword from '../pages/public/ResetPassword';
 import ChangePassword from '../pages/public/ChangePassword';
+import AcceptInvitation from '../pages/public/AcceptInvitation';
 import AdminDashboard from '../roles/admin/pages/AdminDashboard';
 import CoordinatorDashboard from '../roles/coordinator/pages/CoordinatorDashboard';
 import DonorAvailability from '../roles/donor/pages/DonorAvailability';
@@ -33,6 +33,8 @@ import DonorResponses from '../roles/coordinator/pages/DonorResponses';
 import FollowUps from '../roles/coordinator/pages/FollowUps';
 import CoordinatorRequestDetails from '../roles/coordinator/pages/RequestDetails';
 import AdminCoordinatorManagement from '../roles/admin/pages/CoordinatorManagement';
+import AdminManagement from '../roles/admin/pages/AdminManagement';
+import AuditLog from '../roles/admin/pages/AuditLog';
 import DonationManagement from '../roles/admin/pages/DonationManagement';
 import DonorManagement from '../roles/admin/pages/DonorManagement';
 import NotificationManagement from '../roles/admin/pages/NotificationManagement';
@@ -42,6 +44,9 @@ import ReceiverNotifications from '../roles/receiver/pages/ReceiverNotifications
 import ReceiverRequestDetails from '../roles/receiver/pages/RequestDetails';
 import RequestBlood from '../roles/receiver/pages/RequestBlood';
 import RequestHistory from '../roles/receiver/pages/RequestHistory';
+import ReceiverProfile from '../roles/receiver/pages/ReceiverProfile';
+import AdminDonorDetails from '../roles/admin/pages/AdminDonorDetails';
+import AdminRequestDetails from '../roles/admin/pages/AdminRequestDetails';
 import RequestManagement from '../roles/admin/pages/RequestManagement';
 import Reports from '../roles/admin/pages/Reports';
 
@@ -54,7 +59,6 @@ function AppRoutes() {
             <Route index element={<Home />} />
             <Route path="about" element={<About />} />
             <Route path="blood-availability" element={<BloodAvailability />} />
-            <Route path="blood-banks" element={<BloodBanks />} />
             <Route path="blood-camps" element={<BloodCamps />} />
             <Route path="donation-eligibility" element={<DonationEligibility />} />
             <Route path="how-donation-works" element={<HowDonationWorks />} />
@@ -62,6 +66,7 @@ function AppRoutes() {
             <Route path="signup" element={<Signup />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password" element={<ResetPassword />} />
+            <Route path="accept-invite" element={<AcceptInvitation />} />
           </Route>
 
           <Route
@@ -112,6 +117,7 @@ function AppRoutes() {
             <Route path="requests/:id" element={<ReceiverRequestDetails />} />
             <Route path="history" element={<RequestHistory />} />
             <Route path="notifications" element={<ReceiverNotifications />} />
+            <Route path="profile" element={<ReceiverProfile />} />
           </Route>
 
           <Route
@@ -140,11 +146,15 @@ function AppRoutes() {
           >
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="donors" element={<DonorManagement />} />
+            <Route path="donors/:id" element={<AdminDonorDetails />} />
             <Route path="requests" element={<RequestManagement />} />
+            <Route path="requests/:id" element={<AdminRequestDetails />} />
             <Route path="coordinators" element={<AdminCoordinatorManagement />} />
+            <Route path="admins" element={<AdminManagement />} />
             <Route path="donations" element={<DonationManagement />} />
             <Route path="reports" element={<Reports />} />
             <Route path="notifications" element={<NotificationManagement />} />
+            <Route path="audit-logs" element={<AuditLog />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

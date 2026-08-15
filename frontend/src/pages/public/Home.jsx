@@ -294,14 +294,6 @@ export default function Home() {
             <div><strong className="text-slate-700">Location:</strong> District General Hospital Campus (Details to be updated)</div>
             <div><strong className="text-slate-700">Contact:</strong> Information will be updated once confirmed by the bank.</div>
           </div>
-          <div>
-            <Link
-              to="/blood-banks"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-            >
-              Learn More
-            </Link>
-          </div>
         </div>
       </section>
     </div>

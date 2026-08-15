@@ -28,4 +28,7 @@ router.post('/forgot-password', recoveryLimiter, authController.forgotPassword);
 router.post('/reset-password', authLimiter, authController.resetPassword);
 router.post('/change-password', authMiddleware, authController.changePassword);
 
+router.get('/invitations/validate', authController.validateInvitation);
+router.post('/invitations/accept', authController.acceptInvitation);
+
 export default router;

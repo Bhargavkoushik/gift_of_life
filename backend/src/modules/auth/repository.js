@@ -86,7 +86,10 @@ export async function createReceiverProfile(userId, name, phone, address, area, 
 
 export async function updateLastLogin(userId) {
   await pool.query(
-    `UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1`,
+    `UPDATE users 
+     SET first_login_at = COALESCE(first_login_at, CURRENT_TIMESTAMP),
+         last_login_at = CURRENT_TIMESTAMP 
+     WHERE id = $1`,
     [userId]
   );
 }
