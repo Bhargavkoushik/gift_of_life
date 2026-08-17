@@ -165,3 +165,29 @@ export async function acceptInvitation(req, res, next) {
     next(error);
   }
 }
+
+export async function updateProfile(req, res, next) {
+  try {
+    const { name, phone } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+    if (phone && !/^\+?[0-9\s-]{7,20}$/.test(phone)) {
+      return res.status(400).json({ message: 'Please provide a valid phone number' });
+    }
+    const result = await authService.updateUserProfile(req.user.id, { name, phone });
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function logout(req, res, next) {
+  try {
+    const actorId = req.user.id;
+    await authService.logoutUser(actorId);
+    return res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    next(error);
+  }
+}

@@ -9,6 +9,10 @@ export async function getDashboardStats() {
   return await adminRepository.getSystemStats();
 }
 
+export async function getActiveStaffList() {
+  return await adminRepository.getActiveStaff();
+}
+
 export async function getStaffAndInvitations() {
   const staff = await adminRepository.getStaffList();
   const invitations = await adminRepository.getInvitationsList();
@@ -268,36 +272,56 @@ export async function updateStaffStatus(actorId, targetUserId, { status }) {
     throw err;
   }
 
-  // Fetch user to match invitation
-  const userRes = await pool.query('SELECT email FROM users WHERE id = $1', [targetUserId]);
-  const userEmail = userRes.rows[0]?.email;
+  // Fetch target user's current status and email
+  const userRes = await pool.query('SELECT email, status FROM users WHERE id = $1', [targetUserId]);
+  if (userRes.rows.length === 0) {
+    const err = new Error('User not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const userEmail = userRes.rows[0].email;
+  const currentAccountStatus = userRes.rows[0].status;
 
   const targetRolesRes = await pool.query('SELECT role FROM user_roles WHERE user_id = $1', [targetUserId]);
   const targetRoles = targetRolesRes.rows.map(r => r.role);
   const isCoordinator = targetRoles.includes('COORDINATOR');
   const isTargetAdmin = targetRoles.includes('ADMIN');
 
-  if (status === 'ACTIVE' && (isCoordinator || isTargetAdmin)) {
-    const invitation = await adminRepository.getInvitationByEmail(userEmail);
-    if (!invitation) {
-      const err = new Error('Cannot activate staff account without a valid invitation.');
+  if (status === 'ACTIVE') {
+    if (currentAccountStatus !== 'INACTIVE') {
+      const err = new Error('Cannot activate account. Account is already active or suspended.');
       err.statusCode = 400;
       throw err;
     }
-    if (invitation.status === 'REJECTED') {
-      const err = new Error('Cannot activate account. Staff verification has been rejected.');
-      err.statusCode = 400;
-      throw err;
-    }
-    if (invitation.status !== 'APPROVED') {
-      const err = new Error(`Cannot activate account. Staff identity verification status must be APPROVED. Current status: ${invitation.status}`);
-      err.statusCode = 400;
-      throw err;
+
+    if (isCoordinator || isTargetAdmin) {
+      const invitation = await adminRepository.getInvitationByEmail(userEmail);
+      if (!invitation) {
+        const err = new Error('Cannot activate staff account without a valid invitation.');
+        err.statusCode = 400;
+        throw err;
+      }
+      if (invitation.status === 'REJECTED') {
+        const err = new Error('Cannot activate account. Staff verification has been rejected.');
+        err.statusCode = 400;
+        throw err;
+      }
+      if (invitation.status !== 'APPROVED') {
+        const err = new Error(`Cannot activate account. Staff identity verification status must be APPROVED. Current status: ${invitation.status}`);
+        err.statusCode = 400;
+        throw err;
+      }
     }
   }
 
   // If deactivating, run safety check
   if (status === 'INACTIVE') {
+    if (currentAccountStatus !== 'ACTIVE') {
+      const err = new Error('Cannot deactivate account. Account is not currently active.');
+      err.statusCode = 400;
+      throw err;
+    }
+
     if (isTargetAdmin) {
       const activeAdminsCount = await adminRepository.countActiveAdmins();
       if (activeAdminsCount <= 1) {
@@ -339,42 +363,51 @@ export async function updateStaffStatus(actorId, targetUserId, { status }) {
 }
 
 export async function getCoordinatorDetails(actorId, targetUserId) {
-  // 1. Fetch user and check if coordinator
-  const userRes = await pool.query(
-    `SELECT u.id, u.name, u.email, u.phone, u.status, u.created_at, u.last_login_at, u.first_login_at
-     FROM users u
-     JOIN user_roles ur ON u.id = ur.user_id
-     WHERE u.id = $1 AND ur.role = 'COORDINATOR'`,
-    [targetUserId]
-  );
+  // 1. Fetch user and profile in parallel first
+  const [userRes, profileRes] = await Promise.all([
+    pool.query(
+      `SELECT u.id, u.name, u.email, u.phone, u.status, u.created_at, u.last_login_at, u.first_login_at
+       FROM users u
+       JOIN user_roles ur ON u.id = ur.user_id
+       WHERE u.id = $1 AND ur.role = 'COORDINATOR'`,
+      [targetUserId]
+    ),
+    pool.query(
+      "SELECT id, area, district, state, status, availability_status, last_active_at FROM coordinator_profiles WHERE user_id = $1",
+      [targetUserId]
+    )
+  ]);
+
   if (userRes.rows.length === 0) {
     const err = new Error('Coordinator user account not found');
     err.statusCode = 404;
     throw err;
   }
   const user = userRes.rows[0];
-
-  // 2. Fetch coordinator profile details
-  const profileRes = await pool.query(
-    "SELECT id, area, district, state, status, availability_status, last_active_at FROM coordinator_profiles WHERE user_id = $1",
-    [targetUserId]
-  );
   const profile = profileRes.rows[0] || null;
   const coordinatorProfileId = profile?.id;
 
-  // 3. Fetch invitation details if exists
-  const invitationRes = await pool.query(
-    "SELECT * FROM internal_invitations WHERE email = $1 AND role = 'COORDINATOR'",
-    [user.email]
-  );
-  const invitation = invitationRes.rows[0] || null;
+  // 2. Fetch invitation, stats, coordinations, history and audits in parallel
+  const [
+    invitationRes,
+    stats,
+    currentRequests,
+    recentActivity,
+    donationHistory,
+    auditHistory
+  ] = await Promise.all([
+    pool.query(
+      "SELECT * FROM internal_invitations WHERE email = $1 AND role = 'COORDINATOR'",
+      [user.email]
+    ),
+    adminRepository.getCoordinatorStats(targetUserId, coordinatorProfileId),
+    adminRepository.getCoordinatorActiveCoordination(coordinatorProfileId),
+    adminRepository.getCoordinatorRecentActivity(targetUserId),
+    adminRepository.getCoordinatorDonationHistory(targetUserId),
+    adminRepository.getCoordinatorAuditHistory(targetUserId)
+  ]);
 
-  // 4. Fetch stats, active coordinations, activity, donations and audits
-  const stats = await adminRepository.getCoordinatorStats(targetUserId, coordinatorProfileId);
-  const currentRequests = await adminRepository.getCoordinatorActiveCoordination(coordinatorProfileId);
-  const recentActivity = await adminRepository.getCoordinatorRecentActivity(targetUserId);
-  const donationHistory = await adminRepository.getCoordinatorDonationHistory(targetUserId);
-  const auditHistory = await adminRepository.getCoordinatorAuditHistory(targetUserId);
+  const invitation = invitationRes.rows[0] || null;
 
   return {
     user,
@@ -388,8 +421,90 @@ export async function getCoordinatorDetails(actorId, targetUserId) {
   };
 }
 
-export async function getLogs() {
-  return await adminRepository.getAuditLogs();
+export async function getLogs(filters = {}) {
+  let { page = 1, limit = 10, search = '', action = '', actor = '', category = '', entityType = '', dateFrom = null, dateTo = null, download = false } = filters;
+
+  page = parseInt(page, 10) || 1;
+  limit = parseInt(limit, 10) || 10;
+  
+  const isDownload = download === true || download === 'true';
+  if (isDownload) {
+    limit = 5000;
+    page = 1;
+  } else {
+    if (limit > 50) limit = 50;
+    if (limit < 1) limit = 10;
+    if (page < 1) page = 1;
+  }
+
+  const offset = (page - 1) * limit;
+
+  const [logs, totalRecords] = await Promise.all([
+    adminRepository.getAuditLogs({
+      limit,
+      offset,
+      search,
+      action,
+      actor,
+      category,
+      entityType,
+      dateFrom,
+      dateTo
+    }),
+    adminRepository.getAuditLogsCount({
+      search,
+      action,
+      actor,
+      category,
+      entityType,
+      dateFrom,
+      dateTo
+    })
+  ]);
+
+  const totalPages = Math.ceil(totalRecords / limit);
+
+  return {
+    logs,
+    pagination: {
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    }
+  };
+}
+
+export async function deleteLogs(actorId, ids) {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new Error('No log IDs provided for deletion.');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    const deletedIds = await adminRepository.deleteAuditLogs(ids, actorId, client);
+    
+    if (deletedIds.length > 0) {
+      await adminRepository.writeAuditLog(
+        actorId,
+        'ADMIN_DELETED_AUDIT_LOGS',
+        'AUDIT_LOG',
+        null,
+        { count: deletedIds.length, deleted_ids: deletedIds },
+        client
+      );
+    }
+    
+    await client.query('COMMIT');
+    return { count: deletedIds.length, deletedIds };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getDonors({ search, bloodGroup, availability, sort }) {
@@ -537,6 +652,396 @@ export async function cancelBloodRequest(actorId, requestId) {
 
     await client.query('COMMIT');
     return { success: true, message: 'Blood request successfully cancelled.' };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getDonationsList(params) {
+  const donations = await adminRepository.getDonationsList(params);
+  const total = await adminRepository.getDonationsCount(params);
+  return {
+    donations,
+    pagination: {
+      total,
+      page: parseInt(params.page || '1', 10),
+      limit: parseInt(params.limit || '10', 10),
+      totalPages: Math.ceil(total / parseInt(params.limit || '10', 10))
+    }
+  };
+}
+
+export async function getDonationsSummaryStats() {
+  return await adminRepository.getDonationMetrics();
+}
+
+export async function getAdminReportsData(period) {
+  let startDate = null;
+  const now = new Date();
+
+  switch (period) {
+    case 'last_7_days':
+      startDate = new Date(now.setDate(now.getDate() - 7));
+      break;
+    case 'this_month':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case 'last_3_months':
+      startDate = new Date(now.setMonth(now.getMonth() - 3));
+      break;
+    case 'this_year':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      break;
+    case 'all_time':
+    default:
+      startDate = null;
+      break;
+  }
+
+  const [
+    operationsSummary,
+    requestOutcomes,
+    bloodGroupStats,
+    donorContribution,
+    coordinatorWorkload,
+    activityTrend
+  ] = await Promise.all([
+    adminRepository.getOperationsSummary(startDate),
+    adminRepository.getRequestOutcomesStats(startDate),
+    adminRepository.getBloodGroupDemandSupplyStats(startDate),
+    adminRepository.getDonorContributionStats(startDate),
+    adminRepository.getCoordinatorWorkloadStats(startDate),
+    adminRepository.getActivityTrend(period)
+  ]);
+
+  return {
+    operationsSummary,
+    requestOutcomes,
+    bloodGroupStats,
+    donorContribution,
+    coordinatorWorkload,
+    activityTrend
+  };
+}
+
+export async function checkAndGenerateEscalations() {
+  const windowMinutes = 15;
+  const overdue = await adminRepository.getOverdueAssignments(windowMinutes);
+  const activeAdmins = await adminRepository.getActiveAdmins();
+
+  for (const item of overdue) {
+    const exists = await adminRepository.checkEscalationExists(item.request_id);
+    if (exists === 0) {
+      for (const admin of activeAdmins) {
+        await adminRepository.insertAdminNotification(
+          admin.id,
+          item.request_id,
+          'COORDINATOR_ACTION_OVERDUE',
+          'IN_APP',
+          `ESCALATION: Coordinator Action Overdue`,
+          `Request for ${item.patient_name} (${item.blood_group}) has been assigned to coordinator ${item.coordinator_name}, but the required coordinator action has not been taken within the expected response window.`,
+          `escalation:${item.request_id}:${admin.id}`
+        );
+      }
+    }
+  }
+}
+
+export async function getAdminNotifications(adminUserId) {
+  await checkAndGenerateEscalations();
+  return await adminRepository.getAdminNotifications(adminUserId);
+}
+
+export async function markAdminNotificationRead(notificationId, adminUserId) {
+  return await adminRepository.markAdminNotificationRead(notificationId, adminUserId);
+}
+
+export async function deleteAdminNotification(actorId, notificationId, adminUserId) {
+  const notif = await adminRepository.getNotificationById(notificationId, adminUserId);
+  await adminRepository.deleteAdminNotification(notificationId, adminUserId);
+  if (notif) {
+    await adminRepository.writeAuditLog(
+      actorId,
+      'ADMIN_DELETED_NOTIFICATION',
+      'NOTIFICATION',
+      notificationId,
+      { title: notif.title }
+    );
+  }
+  return { success: true };
+}
+
+export async function sendEmergencyNotification(actorId, notificationId, adminUserId) {
+  let resolvedNotifId = notificationId;
+  let notif = await adminRepository.getNotificationById(resolvedNotifId, adminUserId);
+  if (!notif) {
+    const fallbackRes = await pool.query(`
+      SELECT n.id as notification_id
+      FROM notifications n
+      WHERE n.request_id = $1 AND n.user_id = $2 AND n.status <> 'DELETED'
+      ORDER BY n.created_at DESC LIMIT 1
+    `, [notificationId, adminUserId]);
+    if (fallbackRes.rows.length > 0) {
+      resolvedNotifId = fallbackRes.rows[0].notification_id;
+      notif = await adminRepository.getNotificationById(resolvedNotifId, adminUserId);
+    }
+  }
+
+  if (!notif) {
+    const err = new Error('Notification not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!['SYSTEM', 'COORDINATOR_ACTION_OVERDUE'].includes(notif.type) || !notif.title.startsWith('ESCALATION:')) {
+    const err = new Error('Only overdue escalation alerts can trigger an emergency notice');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Cooldown check: 10 minutes
+  const lastEmergencyRes = await pool.query(
+    `SELECT created_at FROM audit_logs
+     WHERE actor_id = $1 AND action = 'ADMIN_SENT_EMERGENCY_NOTIFICATION' AND entity_id = $2
+       AND created_at > NOW() - INTERVAL '10 minutes'
+     ORDER BY created_at DESC LIMIT 1`,
+    [actorId, notif.request_id]
+  );
+  if (lastEmergencyRes.rows.length > 0) {
+    const err = new Error('Emergency notification cooldown active. Please wait 10 minutes between emergency alerts.');
+    err.statusCode = 429;
+    throw err;
+  }
+
+  const coordUser = {
+    name: notif.coordinator_name,
+    email: notif.coordinator_email,
+    phone: notif.coordinator_phone
+  };
+
+  const requestDetails = {
+    patient_name: notif.patient_name,
+    blood_group: notif.blood_group
+  };
+
+  // 1. Dispatch simulated email/SMS
+  await notificationService.sendEmergencyCoordinatorNotification(coordUser, requestDetails);
+
+  // 2. Mark overdue escalation notification as read
+  await adminRepository.markAdminNotificationRead(resolvedNotifId, adminUserId);
+
+  // 3. Create new EMERGENCY follow-up notifications for all active admins
+  const activeAdmins = await adminRepository.getActiveAdmins();
+  for (const admin of activeAdmins) {
+    await adminRepository.insertAdminNotification(
+      admin.id,
+      notif.request_id,
+      'EMERGENCY_REQUEST',
+      'IN_APP',
+      `EMERGENCY: Emergency Follow-up - Request for ${notif.patient_name}`,
+      `Emergency notification was sent to ${notif.coordinator_name} for Request for ${notif.patient_name} (${notif.blood_group}), but the required coordinator action has still not been recorded.`
+    );
+  }
+
+  // 4. Write audit log
+  await adminRepository.writeAuditLog(
+    actorId,
+    'ADMIN_SENT_EMERGENCY_NOTIFICATION',
+    'BLOOD_REQUEST',
+    notif.request_id,
+    { coordinator_name: notif.coordinator_name }
+  );
+
+  return { success: true, message: 'Emergency notification successfully sent to coordinator.' };
+}
+
+export async function sendCoordinatorReminder(actorId, notificationId, adminUserId) {
+  let resolvedNotifId = notificationId;
+  let notif = await adminRepository.getNotificationById(resolvedNotifId, adminUserId);
+  if (!notif) {
+    const fallbackRes = await pool.query(`
+      SELECT n.id as notification_id
+      FROM notifications n
+      WHERE n.request_id = $1 AND n.user_id = $2 AND n.status <> 'DELETED'
+      ORDER BY n.created_at DESC LIMIT 1
+    `, [notificationId, adminUserId]);
+    if (fallbackRes.rows.length > 0) {
+      resolvedNotifId = fallbackRes.rows[0].notification_id;
+      notif = await adminRepository.getNotificationById(resolvedNotifId, adminUserId);
+    }
+  }
+
+  if (!notif) {
+    const err = new Error('Notification not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Cooldown check: 5 minutes
+  const lastReminderRes = await pool.query(
+    `SELECT created_at FROM audit_logs
+     WHERE actor_id = $1 AND action = 'ADMIN_SENT_REMINDER' AND entity_id = $2
+       AND created_at > NOW() - INTERVAL '5 minutes'
+     ORDER BY created_at DESC LIMIT 1`,
+    [actorId, notif.request_id]
+  );
+
+  if (lastReminderRes.rows.length > 0) {
+    const err = new Error('Reminder cooldown active. Please wait 5 minutes between reminders.');
+    err.statusCode = 429;
+    throw err;
+  }
+
+  // Fetch the coordinator profile & user ID
+  const coordProfileRes = await pool.query(
+    `SELECT cp.id, cp.user_id, u.name, u.email, u.phone
+     FROM request_assignments ra
+     JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
+     JOIN users u ON cp.user_id = u.id
+     WHERE ra.request_id = $1 AND ra.status IN ('ASSIGNED', 'IN_PROGRESS')`,
+    [notif.request_id]
+  );
+
+  if (coordProfileRes.rows.length === 0) {
+    const err = new Error('No active coordinator found for this request');
+    err.statusCode = 404;
+    throw err;
+  }
+  const coordinator = coordProfileRes.rows[0];
+
+  const coordUser = {
+    name: coordinator.name,
+    email: coordinator.email,
+    phone: coordinator.phone
+  };
+
+  const requestDetails = {
+    patient_name: notif.patient_name,
+    blood_group: notif.blood_group
+  };
+
+  // 1. Dispatch simulated email reminder
+  await notificationService.sendCoordinatorEmailReminder(coordUser, requestDetails);
+
+  // 2. Insert In-App Notification for the coordinator (5 minutes interval eventKey)
+  const eventKeyInterval = Math.floor(Date.now() / 300000);
+  await adminRepository.insertAdminNotification(
+    coordinator.user_id,
+    notif.request_id,
+    'REMINDER_SENT',
+    'IN_APP',
+    `REMINDER: Action Required for Request for ${notif.patient_name}`,
+    `Administrative reminder: Please take action on this assigned request for ${notif.patient_name} (${notif.blood_group}).`,
+    `reminder:${notif.request_id}:${coordinator.id}:${eventKeyInterval}`
+  );
+
+  // 3. Write audit log
+  await adminRepository.writeAuditLog(
+    actorId,
+    'ADMIN_SENT_REMINDER',
+    'BLOOD_REQUEST',
+    notif.request_id,
+    { coordinator_name: coordinator.name, admin_id: actorId }
+  );
+
+  return { success: true, message: 'Reminder successfully sent to coordinator.' };
+}
+
+export async function reassignCoordinatorEscalation(actorId, notificationId, adminUserId, { newCoordinatorProfileId, reason }) {
+  const notif = await adminRepository.getNotificationById(notificationId, adminUserId);
+  if (!notif) {
+    const err = new Error('Notification not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!newCoordinatorProfileId) {
+    const err = new Error('A new active coordinator must be selected');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!reason || !reason.trim()) {
+    const err = new Error('A reason for reassignment is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Get previous coordinator name
+  const prevCoordRes = await pool.query(`
+    SELECT u.name, u.id as user_id 
+    FROM request_assignments ra
+    JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
+    JOIN users u ON cp.user_id = u.id
+    WHERE ra.request_id = $1 AND ra.status IN ('ASSIGNED', 'IN_PROGRESS')
+    LIMIT 1
+  `, [notif.request_id]);
+  const previousCoordinatorName = prevCoordRes.rows[0]?.name || 'Unassigned';
+
+  // Get new coordinator details
+  const newCoordRes = await pool.query(`
+    SELECT u.name, u.id as user_id, cp.id as profile_id
+    FROM coordinator_profiles cp
+    JOIN users u ON cp.user_id = u.id
+    WHERE cp.id = $1 AND cp.status = 'ACTIVE' AND u.status = 'ACTIVE'
+  `, [newCoordinatorProfileId]);
+  
+  if (newCoordRes.rows.length === 0) {
+    const err = new Error('Selected coordinator is not eligible or active');
+    err.statusCode = 400;
+    throw err;
+  }
+  const { name: newCoordinatorName, user_id: newCoordinatorUserId } = newCoordRes.rows[0];
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Deactivate old assignments
+    await adminRepository.deactivateActiveAssignments(notif.request_id, client);
+
+    // 2. Insert new assignment
+    await adminRepository.createAssignment(notif.request_id, newCoordinatorProfileId, client);
+
+    // 3. Keep/update request status
+    await adminRepository.updateRequestStatus(notif.request_id, 'COORDINATOR_ASSIGNED', client);
+
+    // 4. Mark admin notification as read
+    await client.query(`
+      UPDATE notifications 
+      SET status = 'READ', sent_at = CURRENT_TIMESTAMP 
+      WHERE id = $1 AND user_id = $2
+    `, [notificationId, adminUserId]);
+
+    // 5. Insert new assignment notification for the new coordinator
+    await client.query(`
+      INSERT INTO notifications (user_id, request_id, type, channel, title, message, status)
+      VALUES ($1, $2, 'REQUEST_STATUS', 'IN_APP', 'New Request Assignment', $3, 'PENDING')
+    `, [
+      newCoordinatorUserId, 
+      notif.request_id, 
+      `You have been assigned to coordinate request for ${notif.patient_name} (${notif.blood_group}).`
+    ]);
+
+    // 6. Write audit log
+    await adminRepository.writeAuditLog(
+      actorId,
+      'ADMIN_REASSIGNED_COORDINATOR',
+      'BLOOD_REQUEST',
+      notif.request_id,
+      {
+        previous_coordinator: previousCoordinatorName,
+        new_coordinator: newCoordinatorName,
+        reason: reason
+      },
+      client
+    );
+
+    await client.query('COMMIT');
+    return { success: true, message: `Request successfully reassigned to ${newCoordinatorName}.` };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

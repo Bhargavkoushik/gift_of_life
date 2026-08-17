@@ -20,6 +20,7 @@ import ResetPassword from '../pages/public/ResetPassword';
 import ChangePassword from '../pages/public/ChangePassword';
 import AcceptInvitation from '../pages/public/AcceptInvitation';
 import AdminDashboard from '../roles/admin/pages/AdminDashboard';
+import ProfileAccount from '../roles/admin/pages/ProfileAccount';
 import CoordinatorDashboard from '../roles/coordinator/pages/CoordinatorDashboard';
 import DonorAvailability from '../roles/donor/pages/DonorAvailability';
 import DonorDashboard from '../roles/donor/pages/DonorDashboard';
@@ -32,6 +33,8 @@ import CoordinatorNotifications from '../roles/coordinator/pages/CoordinatorNoti
 import DonorResponses from '../roles/coordinator/pages/DonorResponses';
 import FollowUps from '../roles/coordinator/pages/FollowUps';
 import CoordinatorRequestDetails from '../roles/coordinator/pages/RequestDetails';
+import CoordinatorCamps from '../roles/coordinator/pages/Camps';
+import CoordinatorBloodAvailability from '../roles/coordinator/pages/BloodAvailability';
 import AdminCoordinatorManagement from '../roles/admin/pages/CoordinatorManagement';
 import AdminManagement from '../roles/admin/pages/AdminManagement';
 import AuditLog from '../roles/admin/pages/AuditLog';
@@ -128,12 +131,16 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           >
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<CoordinatorDashboard />} />
             <Route path="requests" element={<AssignedRequests />} />
             <Route path="requests/:id" element={<CoordinatorRequestDetails />} />
             <Route path="donor-responses" element={<DonorResponses />} />
             <Route path="follow-ups" element={<FollowUps />} />
             <Route path="notifications" element={<CoordinatorNotifications />} />
+            <Route path="profile" element={<ProfileAccount />} />
+            <Route path="public-site/camps" element={<CoordinatorCamps />} />
+            <Route path="public-site/blood-availability" element={<CoordinatorBloodAvailability />} />
           </Route>
 
           <Route
@@ -155,6 +162,7 @@ function AppRoutes() {
             <Route path="reports" element={<Reports />} />
             <Route path="notifications" element={<NotificationManagement />} />
             <Route path="audit-logs" element={<AuditLog />} />
+            <Route path="profile" element={<ProfileAccount />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

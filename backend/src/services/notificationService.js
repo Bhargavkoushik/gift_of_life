@@ -138,3 +138,111 @@ export async function sendPasswordResetSMS(user, rawToken) {
   console.log(`[SMS] Attempting delivery to ${user.phone} via provider: ${provider}`);
   throw new Error(`SMS provider '${provider}' is not yet connected.`);
 }
+
+export async function sendEmergencyCoordinatorNotification(coordUser, requestDetails) {
+  const provider = process.env.MAIL_PROVIDER || 'console';
+
+  if (provider === 'console') {
+    console.log('==================================================');
+    console.log(`[EMERGENCY COORDINATOR SMS/EMAIL SIMULATION]`);
+    console.log(`To Coordinator: ${coordUser.name} <${coordUser.email}> (${coordUser.phone})`);
+    console.log(`Urgent Action Requested on Blood Request for: ${requestDetails.patient_name} (${requestDetails.blood_group})`);
+    console.log('==================================================');
+    return { success: true, provider: 'console' };
+  }
+
+  if (provider === 'smtp') {
+    const port = parseInt(process.env.MAIL_PORT || '587', 10);
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: port,
+      secure: port === 465,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.MAIL_FROM || 'no-reply@giftoflife.org',
+      to: coordUser.email,
+      subject: '🚨 EMERGENCY: Action Overdue for assigned request',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 2px solid #C62828; border-radius: 12px; background-color: #ffffff;">
+          <h2 style="color: #C62828; margin-top: 0; margin-bottom: 5px;">🚨 EMERGENCY URGENT NOTICE</h2>
+          <p style="color: #64748b; font-size: 14px; margin-top: 0; margin-bottom: 20px;">ASN Raju Blood Centre, Bhimavaram</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <p style="font-size: 16px; color: #0f172a; line-height: 1.5; font-weight: bold;">
+            Dear ${coordUser.name},
+          </p>
+          <p style="font-size: 14px; color: #334155; line-height: 1.5;">
+            An emergency follow-up has been issued for the blood request for <strong>${requestDetails.patient_name}</strong> (${requestDetails.blood_group}).
+            You have not taken the required coordination action in the expected window. Please log in immediately and coordinate this case.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      return { success: true, provider: 'smtp' };
+    } catch (err) {
+      console.error('SMTP emergency dispatch failure:', err.message);
+      throw new Error(`Emergency email delivery failed: ${err.message}`);
+    }
+  }
+}
+
+export async function sendCoordinatorEmailReminder(coordUser, requestDetails) {
+  const provider = process.env.MAIL_PROVIDER || 'console';
+
+  if (provider === 'console') {
+    console.log('==================================================');
+    console.log(`[COORDINATOR EMAIL REMINDER SIMULATION]`);
+    console.log(`To Coordinator: ${coordUser.name} <${coordUser.email}> (${coordUser.phone})`);
+    console.log(`Reminder: Action Required on Blood Request for: ${requestDetails.patient_name} (${requestDetails.blood_group})`);
+    console.log('==================================================');
+    return { success: true, provider: 'console' };
+  }
+
+  if (provider === 'smtp') {
+    const port = parseInt(process.env.MAIL_PORT || '587', 10);
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: port,
+      secure: port === 465,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.MAIL_FROM || 'no-reply@giftoflife.org',
+      to: coordUser.email,
+      subject: 'Reminder: Coordination Action Required',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+          <h2 style="color: #0284c7; margin-top: 0; margin-bottom: 5px;">Coordination Reminder</h2>
+          <p style="color: #64748b; font-size: 14px; margin-top: 0; margin-bottom: 20px;">ASN Raju Blood Centre, Bhimavaram</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <p style="font-size: 16px; color: #0f172a; line-height: 1.5;">
+            Dear ${coordUser.name},
+          </p>
+          <p style="font-size: 14px; color: #334155; line-height: 1.5;">
+            This is a reminder to coordinate the blood request for <strong>${requestDetails.patient_name}</strong> (${requestDetails.blood_group}).
+            Please contact the donor and log updates in the coordinator workspace.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      return { success: true, provider: 'smtp' };
+    } catch (err) {
+      console.error('SMTP reminder dispatch failure:', err.message);
+      throw new Error(`Reminder email delivery failed: ${err.message}`);
+    }
+  }
+}

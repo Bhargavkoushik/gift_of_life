@@ -12,12 +12,28 @@ export async function createUser(name, email, phone, passwordHash) {
 
 export async function getUserById(id) {
   const result = await pool.query(
-    `SELECT id, name, email, phone, status, created_at 
+    `SELECT id, name, email, phone, status, created_at, last_login_at, token_version 
      FROM users 
      WHERE id = $1`,
     [id]
   );
   return result.rows[0];
+}
+
+export async function updateUserProfileDetails(id, name, phone) {
+  await pool.query(
+    `UPDATE users 
+     SET name = $1, phone = $2, updated_at = CURRENT_TIMESTAMP 
+     WHERE id = $3`,
+    [name, phone, id]
+  );
+}
+
+export async function incrementTokenVersion(userId) {
+  await pool.query(
+    `UPDATE users SET token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+    [userId]
+  );
 }
 
 export async function getUserByIdentifier(identifier) {

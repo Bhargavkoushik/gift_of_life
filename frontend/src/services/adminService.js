@@ -5,6 +5,11 @@ export const getStats = async () => {
   return response.data;
 };
 
+export const getActiveStaff = async () => {
+  const response = await api.get('/admin/active-staff');
+  return response.data;
+};
+
 export const getStaff = async () => {
   const response = await api.get('/admin/staff');
   return response.data;
@@ -80,7 +85,57 @@ export const cancelBloodRequest = async (requestId) => {
   return response.data;
 };
 
-export const getAuditLogs = async () => {
-  const response = await api.get('/admin/audit-logs');
+export const getAuditLogs = async (params) => {
+  const response = await api.get('/admin/audit-logs', { params });
+  return response.data;
+};
+
+export const deleteAuditLogs = async (ids) => {
+  const response = await api.delete('/admin/audit-logs', { data: { ids } });
+  return response.data;
+};
+
+export const getAdminDonations = async (params) => {
+  const response = await api.get('/admin/donations', { params });
+  return response.data;
+};
+
+export const getAdminDonationStats = async () => {
+  const response = await api.get('/admin/donations/stats');
+  return response.data;
+};
+
+export const getAdminReports = async (params) => {
+  const response = await api.get('/admin/reports', { params });
+  return response.data;
+};
+
+export const getAdminNotifications = async () => {
+  const response = await api.get('/admin/notifications');
+  return response.data;
+};
+
+export const markAdminNotificationRead = async (id) => {
+  const response = await api.post(`/admin/notifications/${id}/read`);
+  return response.data;
+};
+
+export const deleteAdminNotification = async (id) => {
+  const response = await api.delete(`/admin/notifications/${id}`);
+  return response.data;
+};
+
+export const sendEmergencyNotification = async (id) => {
+  const response = await api.post(`/admin/notifications/${id}/send-emergency`);
+  return response.data;
+};
+
+export const sendAdminReminder = async (id) => {
+  const response = await api.post(`/admin/notifications/${id}/send-reminder`);
+  return response.data;
+};
+
+export const reassignCoordinatorEscalation = async (id, newCoordinatorProfileId, reason) => {
+  const response = await api.post(`/admin/notifications/${id}/reassign`, { newCoordinatorProfileId, reason });
   return response.data;
 };

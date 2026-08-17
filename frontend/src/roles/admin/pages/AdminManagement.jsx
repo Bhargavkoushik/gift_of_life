@@ -131,16 +131,22 @@ export default function AdminManagement() {
     }
   };
 
-  const handleStatusToggle = async (userId, email, currentStatus) => {
-    const nextStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-    
-    // Self-deactivation warning
-    if (userId === currentUser?.id && nextStatus === 'INACTIVE') {
-      if (!window.confirm("WARNING: You are deactivating your own administrator account. You will lose access immediately after this operation. Do you want to proceed?")) {
-        return;
+  const handleStatusToggle = async (userId, email, targetStatus) => {
+    // If deactivating, run checks and show deactivate prompt
+    if (targetStatus === 'INACTIVE') {
+      // Self-deactivation warning
+      if (userId === currentUser?.id) {
+        if (!window.confirm("WARNING: You are deactivating your own administrator account. You will lose access immediately after this operation. Do you want to proceed?")) {
+          return;
+        }
+      } else {
+        if (!window.confirm(`Are you sure you want to deactivate ${email}?`)) {
+          return;
+        }
       }
     } else {
-      if (!window.confirm(`Are you sure you want to change status of ${email} to ${nextStatus.toLowerCase()}?`)) {
+      // Activation prompt
+      if (!window.confirm(`Are you sure you want to activate ${email}?`)) {
         return;
       }
     }
@@ -150,7 +156,7 @@ export default function AdminManagement() {
     setSuccessMsg(null);
 
     try {
-      const res = await adminService.updateUserStatus(userId, nextStatus);
+      const res = await adminService.updateUserStatus(userId, targetStatus);
       setSuccessMsg(res.message);
       await loadData();
     } catch (err) {

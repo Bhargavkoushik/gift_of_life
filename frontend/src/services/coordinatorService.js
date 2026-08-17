@@ -1,8 +1,8 @@
 import api from './authService';
 
-export const getCoordinatorRequests = async () => {
-  const response = await api.get('/coordinator/requests');
-  return response.data.requests;
+export const getCoordinatorRequests = async (params = {}) => {
+  const response = await api.get('/coordinator/requests', { params });
+  return response.data;
 };
 
 export const getCoordinatorRequestDetails = async (id) => {
@@ -33,5 +33,20 @@ export const completeDonationByCoordinator = async (id, donorId) => {
   const response = await api.post(`/coordinator/requests/${id}/complete-donation`, {
     donor_id: donorId
   });
+  return response.data;
+};
+
+export const getCoordinatorAvailability = async () => {
+  const response = await api.get('/coordinator/availability');
+  return response.data;
+};
+
+export const updateCoordinatorAvailability = async (status) => {
+  const response = await api.put('/coordinator/availability', { status });
+  return response.data;
+};
+
+export const getCoordinatorDashboardData = async () => {
+  const response = await api.get('/coordinator/dashboard');
   return response.data;
 };

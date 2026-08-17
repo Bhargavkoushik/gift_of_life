@@ -23,11 +23,18 @@ export default async function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, secret);
 
     // Verify user exists and is active in database
-    const userRes = await pool.query('SELECT status FROM users WHERE id = $1', [decoded.id]);
+    const userRes = await pool.query('SELECT status, token_version FROM users WHERE id = $1', [decoded.id]);
     if (userRes.rows.length === 0) {
       return res.status(401).json({
         status: 'error',
         message: 'User account not found'
+      });
+    }
+
+    if (decoded.token_version !== undefined && decoded.token_version !== userRes.rows[0].token_version) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Session has been invalidated. Please sign in again.'
       });
     }
 

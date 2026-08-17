@@ -163,6 +163,14 @@ export async function cancelRequest(userId, requestId) {
       [userId, request.id]
     );
 
+    // Deactivate active coordinator assignments
+    await client.query(
+      `UPDATE request_assignments 
+       SET status = 'REASSIGNED', completed_at = CURRENT_TIMESTAMP 
+       WHERE request_id = $1 AND status IN ('ASSIGNED', 'IN_PROGRESS')`,
+      [request.id]
+    );
+
     await client.query('COMMIT');
     return request;
   } catch (err) {

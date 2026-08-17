@@ -8,6 +8,7 @@ import adminRoutes from './modules/admin/routes.js';
 import receiverRoutes from './modules/receivers/routes.js';
 import authMiddleware from './middleware/auth.js';
 import requireRole from './middleware/role.js';
+import { queryBloodCamps, queryBloodInventory, getBloodGroups } from './modules/coordinators/repository.js';
 
 const app = express();
 
@@ -20,8 +21,35 @@ app.use('/api/coordinator', authMiddleware, requireRole('COORDINATOR'), coordina
 app.use('/api/admin', authMiddleware, requireRole('ADMIN'), adminRoutes);
 app.use('/api/receiver', authMiddleware, requireRole('RECEIVER'), receiverRoutes);
 
+app.get('/api/blood-camps', async (req, res, next) => {
+  try {
+    const camps = await queryBloodCamps(req.query);
+    return res.status(200).json(camps);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/blood-availability', async (req, res, next) => {
+  try {
+    const availability = await queryBloodInventory(req.query);
+    return res.status(200).json(availability);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/blood-groups', async (req, res, next) => {
+  try {
+    const groups = await getBloodGroups();
+    return res.status(200).json(groups);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/health', (request, response) => {
-	response.json({ status: 'ok' });
+  response.json({ status: 'ok' });
 });
 
 app.get('/api/health/db', async (request, response) => {
