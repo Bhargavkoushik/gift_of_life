@@ -7,6 +7,27 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
+  const [showActiveStaffModal, setShowActiveStaffModal] = useState(false);
+  const [modalRole, setModalRole] = useState(null); // 'ADMIN' or 'COORDINATOR'
+  const [activeStaff, setActiveStaff] = useState({ admins: [], coordinators: [] });
+  const [loadingActiveStaff, setLoadingActiveStaff] = useState(false);
+  const [activeStaffError, setActiveStaffError] = useState(null);
+
+  const openModal = async (role) => {
+    setModalRole(role);
+    setShowActiveStaffModal(true);
+    setLoadingActiveStaff(true);
+    setActiveStaffError(null);
+    try {
+      const data = await adminService.getActiveStaff();
+      setActiveStaff(data);
+    } catch (err) {
+      setActiveStaffError('Failed to load active staff list.');
+    } finally {
+      setLoadingActiveStaff(false);
+    }
+  };
+
   useEffect(() => {
     async function loadStats() {
       try {
@@ -82,11 +103,19 @@ export default function AdminDashboard() {
                 <span className="text-xxs text-slate-400 font-medium">Verification approved, inactive</span>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active Administrators</span>
-                <div className="text-2xl font-extrabold text-purple-600">{stats.activeAdmins || 0}</div>
-                <span className="text-xxs text-slate-400 font-medium">Full secure backend access</span>
-              </div>
+               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2 flex flex-col justify-between">
+                 <div className="space-y-1">
+                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active Administrators</span>
+                   <div className="text-2xl font-extrabold text-purple-600">{stats.activeAdmins || 0}</div>
+                   <span className="text-xxs text-slate-400 font-medium">Full secure backend access</span>
+                 </div>
+                 <button
+                   onClick={() => openModal('ADMIN')}
+                   className="w-full text-center rounded-lg bg-slate-50 border border-slate-200 py-1 text-xxs font-bold text-slate-650 hover:bg-slate-100 transition cursor-pointer mt-1"
+                 >
+                   View Active Admins
+                 </button>
+               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Inactive Administrators</span>
@@ -102,11 +131,19 @@ export default function AdminDashboard() {
               Coordinator Operational Summary
             </h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active Coordinators</span>
-                <div className="text-2xl font-extrabold text-brand-red">{stats.activeCoordinators || 0}</div>
-                <span className="text-xxs text-slate-400 font-medium">Total active coordinators</span>
-              </div>
+               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2 flex flex-col justify-between">
+                 <div className="space-y-1">
+                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active Coordinators</span>
+                   <div className="text-2xl font-extrabold text-brand-red">{stats.activeCoordinators || 0}</div>
+                   <span className="text-xxs text-slate-400 font-medium">Total active coordinators</span>
+                 </div>
+                 <button
+                   onClick={() => openModal('COORDINATOR')}
+                   className="w-full text-center rounded-lg bg-slate-50 border border-slate-200 py-1 text-xxs font-bold text-slate-650 hover:bg-slate-100 transition cursor-pointer mt-1"
+                 >
+                   View Active Coordinators
+                 </button>
+               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pending Verification</span>
@@ -200,6 +237,67 @@ export default function AdminDashboard() {
                 <span className="text-xxs text-slate-400 font-medium">Requests resolved successfully</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showActiveStaffModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 space-y-4 relative">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Active {modalRole === 'ADMIN' ? 'Administrators' : 'Coordinators'}
+              </h3>
+              <button
+                onClick={() => setShowActiveStaffModal(false)}
+                className="text-slate-400 hover:text-slate-650 transition text-sm font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="max-h-60 overflow-y-auto space-y-2.5 py-1 pr-1">
+              {loadingActiveStaff ? (
+                <div className="flex justify-center items-center py-6">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-red"></div>
+                </div>
+              ) : activeStaffError ? (
+                <div className="text-xxs text-rose-600 font-semibold bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-center">
+                  {activeStaffError}
+                </div>
+              ) : (
+                <>
+                  {(modalRole === 'ADMIN' ? activeStaff.admins : activeStaff.coordinators).length === 0 ? (
+                    <div className="text-center text-slate-400 font-semibold text-xxs py-6 bg-slate-50 border border-slate-100 rounded-xl">
+                      No active {modalRole === 'ADMIN' ? 'administrators' : 'coordinators'} found.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {(modalRole === 'ADMIN' ? activeStaff.admins : activeStaff.coordinators).map((person) => (
+                        <div key={person.id} className="py-2 first:pt-0 last:pb-0 flex flex-col">
+                          <span className="text-xs font-bold text-slate-800">{person.name}</span>
+                          <span className="text-xxs text-slate-450 font-mono mt-0.5">{person.email}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setShowActiveStaffModal(false)}
+                className="rounded-lg bg-slate-50 px-4 py-2 text-xxs font-bold text-slate-700 hover:bg-slate-100 border border-slate-200 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import PageHeader from '../../../components/PageHeader';
 import {
   getCoordinatorRequestDetails,
@@ -12,9 +12,16 @@ import {
 export default function CoordinatorRequestDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const fromRoute = location.state?.from || '/coordinator/requests';
+  const backLabel = location.state?.label || 'Assigned Requests';
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [confirmCompleteDonorId, setConfirmCompleteDonorId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Screening form state
@@ -69,10 +76,13 @@ export default function CoordinatorRequestDetails() {
     e.preventDefault();
     if (!selectedDonorId) return;
     setActionLoading(true);
+    setError(null);
+    setSuccessMessage(null);
     try {
       await recordScreening(id, selectedDonorId, screeningStatus, deferredUntil || null);
       await loadDetails();
-      alert('Medical screening outcome recorded successfully!');
+      setSuccessMessage('Medical screening outcome recorded successfully!');
+      setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err) {
       setError(err.message || 'Failed to record screening');
     } finally {
@@ -80,18 +90,26 @@ export default function CoordinatorRequestDetails() {
     }
   };
 
-  const handleCompleteDonation = async (donorProfileId) => {
-    if (!window.confirm('Are you sure you want to mark this donation as completed? This will finalize the request.')) {
-      return;
-    }
+  const handleCompleteDonation = (donorProfileId) => {
+    setConfirmCompleteDonorId(donorProfileId);
+  };
+
+  const executeCompleteDonation = async () => {
+    if (!confirmCompleteDonorId) return;
     setActionLoading(true);
+    setError(null);
+    setSuccessMessage(null);
     try {
-      await completeDonationByCoordinator(id, donorProfileId);
-      await loadDetails();
-      alert('Donation successfully logged and request closed!');
-      navigate('/coordinator/dashboard');
+      await completeDonationByCoordinator(id, confirmCompleteDonorId);
+      setConfirmCompleteDonorId(null);
+      setSuccessMessage('Donation successfully logged and request closed!');
+      setTimeout(() => {
+        setSuccessMessage(null);
+        navigate(fromRoute);
+      }, 2000);
     } catch (err) {
       setError(err.message || 'Failed to complete donation');
+      setConfirmCompleteDonorId(null);
     } finally {
       setActionLoading(false);
     }
@@ -104,22 +122,28 @@ export default function CoordinatorRequestDetails() {
 
   return (
     <div className="page-stack">
-      <div className="flex justify-between items-center">
+      <div>
+        <button
+          onClick={() => navigate(fromRoute)}
+          className="mb-3 flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer select-none"
+        >
+          ← Back to {backLabel}
+        </button>
         <PageHeader
           title={`Coordinate Request for ${request.patient_name}`}
           description={`Track stages, manage donor check-ins, and record clinical outcomes.`}
         />
-        <button
-          onClick={() => navigate('/coordinator/dashboard')}
-          className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 cursor-pointer"
-        >
-          ← Back to Dashboard
-        </button>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          {error}
+        <div className="rounded-lg bg-rose-50 p-4 text-xs font-semibold text-rose-800 border border-rose-100 select-none animate-fade-in">
+          ⚠️ {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="rounded-lg bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 border border-emerald-100 select-none animate-fade-in">
+          ✓ {successMessage}
         </div>
       )}
 
@@ -293,6 +317,44 @@ export default function CoordinatorRequestDetails() {
           </section>
         </div>
       </div>
+
+      {/* CONFIRM DONATION COMPLETION MODAL */}
+      {confirmCompleteDonorId && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-sm p-6 space-y-4 font-semibold text-slate-700 text-xs">
+            <h3 className="text-sm font-black text-slate-900 select-none">
+              Confirm Donation Completion
+            </h3>
+            
+            <p className="text-slate-500 leading-relaxed font-sans text-xxs select-none">
+              Are you sure you want to mark this donation as completed? This will finalize the request and mark the donor as unavailable.
+            </p>
+            
+            <div className="flex justify-end gap-2 pt-2 select-none">
+              <button
+                type="button"
+                onClick={() => setConfirmCompleteDonorId(null)}
+                disabled={actionLoading}
+                className="rounded-xl border border-slate-250 bg-white hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 cursor-pointer transition text-xxs disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeCompleteDonation}
+                disabled={actionLoading}
+                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 cursor-pointer transition text-xxs disabled:opacity-50"
+              >
+                {actionLoading ? 'Completing...' : 'Complete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

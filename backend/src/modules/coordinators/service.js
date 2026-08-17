@@ -1,11 +1,32 @@
 import * as coordinatorRepository from './repository.js';
 import * as donorRepository from '../donors/repository.js';
 
+async function verifyAssignment(requestId, coordinatorUserId) {
+  const assignment = await coordinatorRepository.getActiveAssignment(requestId, coordinatorUserId);
+  if (!assignment) {
+    const err = new Error('Access denied: You are not authorized to view or manage this request.');
+    err.statusCode = 403;
+    throw err;
+  }
+  return assignment;
+}
+
+async function verifyViewAssignment(requestId, coordinatorUserId) {
+  const assignment = await coordinatorRepository.getAssignment(requestId, coordinatorUserId);
+  if (!assignment) {
+    const err = new Error('Access denied: You are not authorized to view this request.');
+    err.statusCode = 403;
+    throw err;
+  }
+  return assignment;
+}
+
 export async function getAssignedRequests(coordinatorUserId) {
   return await coordinatorRepository.getAssignedRequests(coordinatorUserId);
 }
 
-export async function getRequestDetails(requestId) {
+export async function getRequestDetails(requestId, coordinatorUserId) {
+  await verifyViewAssignment(requestId, coordinatorUserId);
   const request = await coordinatorRepository.getRequestDetails(requestId);
   if (!request) {
     const err = new Error('Blood request not found');
@@ -16,17 +37,21 @@ export async function getRequestDetails(requestId) {
   return { request, responses };
 }
 
-export async function coordinateRequest(requestId) {
+export async function coordinateRequest(requestId, coordinatorUserId) {
+  await verifyAssignment(requestId, coordinatorUserId);
   const request = await coordinatorRepository.getRequestDetails(requestId);
   if (!request) {
     const err = new Error('Blood request not found');
     err.statusCode = 404;
     throw err;
   }
-  return await coordinatorRepository.updateRequestStatus(requestId, 'COORDINATOR_ASSIGNED');
+  await coordinatorRepository.updateRequestStatus(requestId, 'COORDINATOR_ASSIGNED');
+  await coordinatorRepository.updateAssignmentStatus(requestId, coordinatorUserId, 'IN_PROGRESS');
+  return { success: true };
 }
 
-export async function confirmVisit(requestId) {
+export async function confirmVisit(requestId, coordinatorUserId) {
+  await verifyAssignment(requestId, coordinatorUserId);
   const request = await coordinatorRepository.getRequestDetails(requestId);
   if (!request) {
     const err = new Error('Blood request not found');
@@ -36,7 +61,8 @@ export async function confirmVisit(requestId) {
   return await coordinatorRepository.updateRequestStatus(requestId, 'DONOR_CONFIRMED');
 }
 
-export async function recordScreening(requestId, data) {
+export async function recordScreening(requestId, data, coordinatorUserId) {
+  await verifyAssignment(requestId, coordinatorUserId);
   const { donor_id, status, deferred_until } = data;
   if (!['ELIGIBLE', 'TEMPORARILY_DEFERRED', 'NOT_ELIGIBLE'].includes(status)) {
     const err = new Error('Invalid screening eligibility status');
@@ -50,12 +76,14 @@ export async function recordScreening(requestId, data) {
   // If deferred or ineligible, reset request status back to PENDING so other donors can help
   if (['TEMPORARILY_DEFERRED', 'NOT_ELIGIBLE'].includes(status)) {
     await coordinatorRepository.updateRequestStatus(requestId, 'PENDING');
+    await coordinatorRepository.deactivateActiveAssignments(requestId);
   }
 
   return { success: true };
 }
 
 export async function completeDonation(requestId, data, coordinatorUserId) {
+  await verifyAssignment(requestId, coordinatorUserId);
   const { donor_id } = data;
   const donorProfile = await coordinatorRepository.getDonorProfileById(donor_id);
   if (!donorProfile) {
@@ -66,4 +94,110 @@ export async function completeDonation(requestId, data, coordinatorUserId) {
 
   // Call the core donorRepository completeDonation logic
   return await donorRepository.completeDonation(donorProfile.user_id, requestId, coordinatorUserId);
+}
+
+export async function getAvailability(coordinatorUserId) {
+  const status = await coordinatorRepository.getCoordinatorAvailability(coordinatorUserId);
+  return { availability_status: status || 'OFFLINE' };
+}
+
+export async function updateAvailability(coordinatorUserId, status) {
+  if (!['AVAILABLE', 'OFFLINE'].includes(status)) {
+    const err = new Error('Invalid availability status. Must be AVAILABLE or OFFLINE.');
+    err.statusCode = 400;
+    throw err;
+  }
+  const updatedStatus = await coordinatorRepository.updateCoordinatorAvailability(coordinatorUserId, status);
+  return { availability_status: updatedStatus };
+}
+
+export async function getDashboardData(coordinatorUserId) {
+  const [metrics, activeCases, completedCases] = await Promise.all([
+    coordinatorRepository.getDashboardMetrics(coordinatorUserId),
+    coordinatorRepository.getDashboardActiveCases(coordinatorUserId, 4),
+    coordinatorRepository.getDashboardCompletedCases(coordinatorUserId, 4)
+  ]);
+  return {
+    summary: {
+      actionRequired: metrics.activeCount,
+      inProgress: metrics.inProgressCount,
+      completed: metrics.completedCount,
+      cancelledRejected: metrics.cancelledCount
+    },
+    active: {
+      total: metrics.activeCount + metrics.inProgressCount,
+      items: activeCases
+    },
+    completed: {
+      total: metrics.completedCount,
+      items: completedCases
+    }
+  };
+}
+
+export async function getAssignedRequestsPaginated(coordinatorUserId, filters) {
+  return await coordinatorRepository.getAssignedRequestsPaginated(coordinatorUserId, filters);
+}
+
+export async function getBloodCamps(filters) {
+  return await coordinatorRepository.queryBloodCamps(filters);
+}
+
+export async function createBloodCamp(campData, actorId) {
+  const result = await coordinatorRepository.createBloodCamp(campData, actorId);
+  await coordinatorRepository.writeAuditLog(actorId, 'PUBLIC_CAMP_CREATED', 'CAMP', result.id, { name: result.name });
+  return result;
+}
+
+export async function updateBloodCamp(id, campData, actorId) {
+  const result = await coordinatorRepository.updateBloodCamp(id, campData);
+  await coordinatorRepository.writeAuditLog(actorId, 'PUBLIC_CAMP_UPDATED', 'CAMP', id, { name: result.name });
+  return result;
+}
+
+export async function deleteBloodCamp(id, actorId) {
+  const result = await coordinatorRepository.deleteBloodCamp(id);
+  await coordinatorRepository.writeAuditLog(actorId, 'PUBLIC_CAMP_DEACTIVATED', 'CAMP', id, { name: result.name });
+  return result;
+}
+
+export async function getBloodAvailability(filters) {
+  return await coordinatorRepository.queryBloodInventory(filters);
+}
+
+export async function createBloodInventory(inventoryData, actorId) {
+  const result = await coordinatorRepository.createBloodInventory(inventoryData);
+  await coordinatorRepository.writeAuditLog(actorId, 'PUBLIC_BLOOD_AVAILABILITY_UPDATED', 'INVENTORY', result.id, {
+    action: 'CREATE',
+    blood_group: result.blood_group_name,
+    component: result.component,
+    units: result.units
+  });
+  return result;
+}
+
+export async function updateBloodInventory(id, inventoryData, actorId) {
+  const result = await coordinatorRepository.updateBloodInventory(id, inventoryData);
+  await coordinatorRepository.writeAuditLog(actorId, 'PUBLIC_BLOOD_AVAILABILITY_UPDATED', 'INVENTORY', id, {
+    action: 'UPDATE',
+    blood_group: result.blood_group_name,
+    component: result.component,
+    units: result.units
+  });
+  return result;
+}
+
+export async function deleteBloodInventory(id, actorId) {
+  const result = await coordinatorRepository.deleteBloodInventory(id);
+  if (result) {
+    await coordinatorRepository.writeAuditLog(actorId, 'PUBLIC_BLOOD_AVAILABILITY_UPDATED', 'INVENTORY', id, {
+      action: 'DELETE',
+      units: result.units
+    });
+  }
+  return result;
+}
+
+export async function getBloodGroups() {
+  return await coordinatorRepository.getBloodGroups();
 }

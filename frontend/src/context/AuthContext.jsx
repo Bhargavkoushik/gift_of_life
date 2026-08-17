@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
         } catch (err) {
           console.error('Failed to restore auth session:', err.message);
           // Token expired or invalid
-          logout();
+          logout(true);
         }
       }
       setLoading(false);
@@ -93,7 +93,16 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
+  const logout = async (force = false) => {
+    const hasToken = localStorage.getItem('token');
+    if (hasToken && !force) {
+      try {
+        await authService.logoutServer();
+      } catch (err) {
+        console.error('Backend logout call failed:', err);
+        throw err;
+      }
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('workspace');
     setToken(null);

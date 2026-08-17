@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import pool from '../../database/connection.js';
 import * as authRepository from './repository.js';
 import * as notificationService from '../../services/notificationService.js';
+import * as adminRepository from '../admin/repository.js';
 
 const SALT_ROUNDS = 10;
 
@@ -80,7 +81,7 @@ export async function loginUser({ email, password }) {
   }
 
   const token = jwt.sign(
-    { id: user.id, roles },
+    { id: user.id, roles, token_version: user.token_version },
     secret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );
@@ -111,6 +112,9 @@ export async function getCurrentUser(userId) {
     name: user.name,
     email: user.email,
     phone: user.phone,
+    status: user.status,
+    created_at: user.created_at,
+    last_login_at: user.last_login_at,
     roles
   };
 }
@@ -313,7 +317,47 @@ export async function changeUserPassword(userId, { currentPassword, newPassword 
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
   await authRepository.updateUserPassword(userId, passwordHash);
 
+  // Invalidate current JWT sessions
+  await authRepository.incrementTokenVersion(userId);
+
+  // Audit logging
+  const roles = await authRepository.getUserRoles(userId);
+  if (roles.includes('ADMIN')) {
+    await adminRepository.writeAuditLog(
+      userId,
+      'ADMIN_PASSWORD_CHANGED',
+      'USER',
+      userId,
+      { timestamp: new Date().toISOString() }
+    );
+  }
+
   return { message: 'Password changed successfully' };
+}
+
+export async function updateUserProfile(userId, { name, phone }) {
+  const user = await authRepository.getUserById(userId);
+  if (!user) {
+    const err = new Error('User not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  await authRepository.updateUserProfileDetails(userId, name, phone);
+
+  // Audit logging
+  const roles = await authRepository.getUserRoles(userId);
+  if (roles.includes('ADMIN')) {
+    await adminRepository.writeAuditLog(
+      userId,
+      'ADMIN_PROFILE_UPDATED',
+      'USER',
+      userId,
+      { name, phone }
+    );
+  }
+
+  return { message: 'Profile updated successfully' };
 }
 
 export async function validateInvitationToken(token) {
@@ -363,7 +407,7 @@ export async function validateInvitationToken(token) {
     await pool.query(
       `INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata)
        VALUES ($1, $2, 'INVITATION', $3, $4)`,
-      [invitation.created_by, actionStr, invitation.id, JSON.stringify({ email: invitation.email, role: invitation.role })]
+      [null, actionStr, invitation.id, JSON.stringify({ email: invitation.email, role: invitation.role })]
     );
   }
 
@@ -443,5 +487,18 @@ export async function acceptInvitationAndSubmitVerification({ token, password, p
     throw err;
   } finally {
     client.release();
+  }
+}
+
+export async function logoutUser(userId) {
+  const roles = await authRepository.getUserRoles(userId);
+  if (roles.includes('ADMIN')) {
+    await adminRepository.writeAuditLog(
+      userId,
+      'ADMIN_LOGOUT',
+      'USER',
+      userId,
+      { timestamp: new Date().toISOString() }
+    );
   }
 }

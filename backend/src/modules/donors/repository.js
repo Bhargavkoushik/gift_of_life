@@ -137,14 +137,15 @@ export async function respondToRequest(userId, requestId, status, notes) {
         SELECT cp.id
         FROM coordinator_profiles cp
         JOIN users u ON cp.user_id = u.id
-        WHERE cp.status = 'ACTIVE' AND u.status = 'ACTIVE'
+        WHERE cp.status = 'ACTIVE' 
+          AND u.status = 'ACTIVE' 
+          AND cp.availability_status = 'AVAILABLE'
         ORDER BY 
           CASE 
             WHEN cp.area ILIKE $1 OR $2 ILIKE '%' || cp.area || '%' THEN 0 
             WHEN cp.district ILIKE $1 OR $2 ILIKE '%' || cp.district || '%' THEN 1 
             ELSE 2 
-          END,
-          CASE WHEN cp.availability_status = 'AVAILABLE' THEN 0 ELSE 1 END
+          END
         LIMIT 1
       `, [reqLocation, reqAddress]);
 
@@ -168,6 +169,8 @@ export async function respondToRequest(userId, requestId, status, notes) {
             [requestId, coordinatorProfileId]
           );
         }
+      } else {
+        console.warn('No active available coordinator found for request:', requestId);
       }
     }
 
@@ -254,6 +257,14 @@ export async function completeDonation(userId, requestId, verifiedByUserId = nul
       `UPDATE blood_requests
        SET status = 'FULFILLED', closed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
+      [requestId]
+    );
+
+    // 4. Update request assignment status to COMPLETED and log completion time
+    await client.query(
+      `UPDATE request_assignments
+       SET status = 'COMPLETED', completed_at = CURRENT_TIMESTAMP
+       WHERE request_id = $1 AND status IN ('ASSIGNED', 'IN_PROGRESS')`,
       [requestId]
     );
 

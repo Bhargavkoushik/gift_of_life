@@ -70,4 +70,14 @@ export const changePassword = async (currentPassword, newPassword, confirmPasswo
   return response.data;
 };
 
+export const updateProfile = async (name, phone) => {
+  const response = await api.put('/auth/profile', { name, phone });
+  return response.data;
+};
+
+export const logoutServer = async () => {
+  const response = await api.post('/auth/logout');
+  return response.data;
+};
+
 export default api;

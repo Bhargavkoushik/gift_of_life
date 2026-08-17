@@ -27,6 +27,8 @@ router.post('/roles/receiver', authMiddleware, authController.becomeReceiver);
 router.post('/forgot-password', recoveryLimiter, authController.forgotPassword);
 router.post('/reset-password', authLimiter, authController.resetPassword);
 router.post('/change-password', authMiddleware, authController.changePassword);
+router.put('/profile', authMiddleware, authController.updateProfile);
+router.post('/logout', authMiddleware, authController.logout);
 
 router.get('/invitations/validate', authController.validateInvitation);
 router.post('/invitations/accept', authController.acceptInvitation);

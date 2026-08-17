@@ -9,6 +9,15 @@ export async function getStats(req, res, next) {
   }
 }
 
+export async function getActiveStaff(req, res, next) {
+  try {
+    const data = await adminService.getActiveStaffList();
+    return res.status(200).json(data);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getStaff(req, res, next) {
   try {
     const data = await adminService.getStaffAndInvitations();
@@ -87,8 +96,39 @@ export async function updateStatus(req, res, next) {
 
 export async function getAuditLogs(req, res, next) {
   try {
-    const logs = await adminService.getLogs();
-    return res.status(200).json({ logs });
+    const { page, limit, search, action, actor, category, entityType, dateFrom, dateTo } = req.query;
+    const result = await adminService.getLogs({
+      page,
+      limit,
+      search,
+      action,
+      actor,
+      category,
+      entityType,
+      dateFrom,
+      dateTo
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteAuditLogs(req, res, next) {
+  try {
+    const actorId = req.user.id;
+    const { ids } = req.body;
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Audit log IDs array is required' });
+    }
+    
+    const result = await adminService.deleteLogs(actorId, ids);
+    return res.status(200).json({
+      message: `${result.count} audit logs successfully deleted.`,
+      count: result.count,
+      deletedIds: result.deletedIds
+    });
   } catch (error) {
     next(error);
   }
@@ -196,6 +236,101 @@ export async function cancelBloodRequest(req, res, next) {
   try {
     const { id } = req.params;
     const result = await adminService.cancelBloodRequest(req.user.id, id);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDonations(req, res, next) {
+  try {
+    const { page, limit, search, bloodGroupId, coordinatorId } = req.query;
+    const result = await adminService.getDonationsList({
+      page: parseInt(page || '1', 10),
+      limit: parseInt(limit || '10', 10),
+      search: search || '',
+      bloodGroupId: bloodGroupId || '',
+      coordinatorId: coordinatorId || ''
+    });
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDonationStats(req, res, next) {
+  try {
+    const stats = await adminService.getDonationsSummaryStats();
+    return res.status(200).json({ success: true, stats });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getReports(req, res, next) {
+  try {
+    const { period } = req.query;
+    const result = await adminService.getAdminReportsData(period || 'all_time');
+    return res.status(200).json({ success: true, reports: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getNotifications(req, res, next) {
+  try {
+    const notifications = await adminService.getAdminNotifications(req.user.id);
+    return res.status(200).json({ success: true, notifications });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function markNotificationAsRead(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = await adminService.markAdminNotificationRead(id, req.user.id);
+    return res.status(200).json({ success: true, notification: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteNotification(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = await adminService.deleteAdminNotification(req.user.id, id, req.user.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function sendEmergencyNotification(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = await adminService.sendEmergencyNotification(req.user.id, id, req.user.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function sendCoordinatorReminder(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = await adminService.sendCoordinatorReminder(req.user.id, id, req.user.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function reassignCoordinatorEscalation(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { newCoordinatorProfileId, reason } = req.body;
+    const result = await adminService.reassignCoordinatorEscalation(req.user.id, id, req.user.id, { newCoordinatorProfileId, reason });
     return res.status(200).json(result);
   } catch (error) {
     next(error);
