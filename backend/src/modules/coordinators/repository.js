@@ -8,7 +8,7 @@ export async function getAssignedRequests(coordinatorUserId) {
             ra.status as assignment_status, ra.completed_at as assignment_completed_at
      FROM blood_requests br
      JOIN blood_groups bg ON br.blood_group_id = bg.id
-     JOIN receiver_profiles rp ON br.receiver_id = rp.id
+     LEFT JOIN receiver_profiles rp ON br.receiver_id = rp.id
      JOIN request_assignments ra ON br.id = ra.request_id
      JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
      WHERE cp.user_id = $1
@@ -28,7 +28,7 @@ export async function getRequestDetails(requestId) {
     `SELECT br.*, bg.code as blood_group, rp.name as receiver_name, rp.phone as receiver_phone
      FROM blood_requests br
      JOIN blood_groups bg ON br.blood_group_id = bg.id
-     JOIN receiver_profiles rp ON br.receiver_id = rp.id
+     LEFT JOIN receiver_profiles rp ON br.receiver_id = rp.id
      WHERE br.id = $1`,
     [requestId]
   );
@@ -49,8 +49,8 @@ export async function getRequestDonorResponses(requestId) {
   return result.rows;
 }
 
-export async function updateRequestStatus(requestId, status) {
-  const result = await pool.query(
+export async function updateRequestStatus(requestId, status, client = pool) {
+  const result = await client.query(
     `UPDATE blood_requests
      SET status = $1, updated_at = CURRENT_TIMESTAMP
      WHERE id = $2
@@ -93,8 +93,8 @@ export async function updateAssignmentStatus(requestId, coordinatorUserId, statu
   );
 }
 
-export async function deactivateActiveAssignments(requestId) {
-  await pool.query(
+export async function deactivateActiveAssignments(requestId, client = pool) {
+  await client.query(
     `UPDATE request_assignments 
      SET status = 'REASSIGNED', completed_at = CURRENT_TIMESTAMP 
      WHERE request_id = $1 AND status IN ('ASSIGNED', 'IN_PROGRESS')`,
@@ -187,7 +187,7 @@ export async function getDashboardActiveCases(coordinatorUserId, limit = 4) {
             (ra.status = 'ASSIGNED' AND ra.assigned_at < NOW() - INTERVAL '15 minutes') as is_overdue
      FROM blood_requests br
      JOIN blood_groups bg ON br.blood_group_id = bg.id
-     JOIN receiver_profiles rp ON br.receiver_id = rp.id
+     LEFT JOIN receiver_profiles rp ON br.receiver_id = rp.id
      JOIN latest_assignments ra ON br.id = ra.request_id AND ra.rn = 1
      JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
      WHERE cp.user_id = $1
@@ -219,7 +219,7 @@ export async function getDashboardCompletedCases(coordinatorUserId, limit = 4) {
             ra.status as assignment_status, ra.completed_at as assignment_completed_at
      FROM blood_requests br
      JOIN blood_groups bg ON br.blood_group_id = bg.id
-     JOIN receiver_profiles rp ON br.receiver_id = rp.id
+     LEFT JOIN receiver_profiles rp ON br.receiver_id = rp.id
      JOIN latest_assignments ra ON br.id = ra.request_id AND ra.rn = 1
      JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
      WHERE cp.user_id = $1
@@ -298,7 +298,7 @@ export async function getAssignedRequestsPaginated(coordinatorUserId, { page = 1
            ra.assigned_at as assigned_at
     FROM blood_requests br
     JOIN blood_groups bg ON br.blood_group_id = bg.id
-    JOIN receiver_profiles rp ON br.receiver_id = rp.id
+    LEFT JOIN receiver_profiles rp ON br.receiver_id = rp.id
     JOIN latest_assignments ra ON br.id = ra.request_id AND ra.rn = 1
     JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
     ${whereClause}
@@ -532,5 +532,193 @@ export async function writeAuditLog(actorId, action, entityType, entityId, metad
   );
   return result.rows[0];
 }
+
+export async function updateDonorResponseStatus(requestId, donorId, status, client = pool) {
+  const result = await client.query(
+    `UPDATE donor_responses
+     SET response_status = $1, updated_at = CURRENT_TIMESTAMP
+     WHERE request_id = $2 AND donor_id = $3
+     RETURNING *`,
+    [status, requestId, donorId]
+  );
+  return result.rows[0];
+}
+
+export async function getDonorResponsesPaginated(coordinatorUserId, { page = 1, limit = 20, filter = 'ACTIVE', search = '' }) {
+  const offset = (page - 1) * limit;
+  const params = [coordinatorUserId];
+  const conditions = ['cp.user_id = $1'];
+  let paramIndex = 2;
+
+  // Active / History Filter
+  if (filter === 'ACTIVE') {
+    conditions.push(`dr.response_status = 'ACCEPTED'`);
+    conditions.push(`br.status NOT IN ('FULFILLED', 'CANCELLED', 'REJECTED', 'NO_DONOR_FOUND')`);
+    conditions.push(`ra.status IN ('ASSIGNED', 'IN_PROGRESS')`);
+  } else {
+    conditions.push(`(dr.response_status <> 'ACCEPTED' OR br.status IN ('FULFILLED', 'CANCELLED', 'REJECTED', 'NO_DONOR_FOUND') OR ra.status NOT IN ('ASSIGNED', 'IN_PROGRESS'))`);
+  }
+
+  // Search Filter
+  if (search && search.trim() !== '') {
+    conditions.push(`(u.name ILIKE $${paramIndex} OR br.patient_name ILIKE $${paramIndex} OR br.hospital_name ILIKE $${paramIndex})`);
+    params.push(`%${search.trim()}%`);
+    paramIndex++;
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // Get total count
+  const countQuery = `
+    SELECT COUNT(dr.id) as total
+    FROM donor_responses dr
+    JOIN blood_requests br ON dr.request_id = br.id
+    JOIN donor_profiles dp ON dr.donor_id = dp.id
+    JOIN users u ON dp.user_id = u.id
+    JOIN request_assignments ra ON br.id = ra.request_id
+    JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
+    ${whereClause}
+  `;
+  
+  const countRes = await pool.query(countQuery, params);
+  const totalRecords = parseInt(countRes.rows[0]?.total || '0', 10);
+
+  // Sorting
+  let orderByClause = '';
+  if (filter === 'ACTIVE') {
+    orderByClause = `
+      ORDER BY
+        (CASE WHEN ra.status = 'ASSIGNED' AND ra.assigned_at < NOW() - INTERVAL '15 minutes' THEN 0 ELSE 1 END) ASC,
+        (CASE WHEN br.urgency_level = 'EMERGENCY' THEN 0 WHEN br.urgency_level = 'URGENT' THEN 1 ELSE 2 END) ASC,
+        dr.responded_at DESC,
+        ra.assigned_at ASC
+    `;
+  } else {
+    orderByClause = `ORDER BY dr.updated_at DESC, dr.responded_at DESC`;
+  }
+
+  // Get data
+  const dataParams = [...params, offset, limit];
+  const dataQuery = `
+    SELECT dr.id as response_id, dr.response_status, dr.responded_at, dr.notes,
+           br.id as request_id, br.patient_name, br.hospital_name, br.location, br.urgency_level, br.status as request_status,
+           bg.code as blood_group,
+           u.name as donor_name, u.email as donor_email, u.phone as donor_phone,
+           ra.status as assignment_status, ra.assigned_at,
+           (ra.status = 'ASSIGNED' AND ra.assigned_at < NOW() - INTERVAL '15 minutes') as is_overdue
+    FROM donor_responses dr
+    JOIN blood_requests br ON dr.request_id = br.id
+    JOIN blood_groups bg ON br.blood_group_id = bg.id
+    JOIN donor_profiles dp ON dr.donor_id = dp.id
+    JOIN users u ON dp.user_id = u.id
+    JOIN request_assignments ra ON br.id = ra.request_id
+    JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
+    ${whereClause}
+    ${orderByClause}
+    OFFSET $${paramIndex} LIMIT $${paramIndex + 1}
+  `;
+
+  const dataRes = await pool.query(dataQuery, dataParams);
+  
+  return {
+    responses: dataRes.rows,
+    totalRecords,
+    page,
+    limit,
+    totalPages: Math.ceil(totalRecords / limit)
+  };
+}
+
+export async function getFollowUpsPaginated(coordinatorUserId, { page = 1, limit = 20, filter = 'ALL', search = '' }) {
+  const offset = (page - 1) * limit;
+  const params = [coordinatorUserId];
+  const conditions = [
+    'cp.user_id = $1',
+    `br.status NOT IN ('FULFILLED', 'CANCELLED', 'REJECTED', 'NO_DONOR_FOUND')`,
+    `ra.status IN ('ASSIGNED', 'IN_PROGRESS')`
+  ];
+  let paramIndex = 2;
+
+  // Filter tabs
+  if (filter === 'OVERDUE') {
+    conditions.push(`ra.status = 'ASSIGNED' AND ra.assigned_at < NOW() - INTERVAL '15 minutes'`);
+  } else if (filter === 'PENDING_ACTION') {
+    conditions.push(`br.status IN ('DONOR_RESPONDED', 'COORDINATOR_ASSIGNED', 'DONOR_CONFIRMED')`);
+  }
+
+  // Search Filter
+  if (search && search.trim() !== '') {
+    conditions.push(`(u.name ILIKE $${paramIndex} OR br.patient_name ILIKE $${paramIndex} OR br.hospital_name ILIKE $${paramIndex})`);
+    params.push(`%${search.trim()}%`);
+    paramIndex++;
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // Get total count
+  const countQuery = `
+    SELECT COUNT(ra.id) as total
+    FROM request_assignments ra
+    JOIN blood_requests br ON ra.request_id = br.id
+    JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
+    LEFT JOIN donor_responses dr ON dr.request_id = br.id AND dr.response_status = 'ACCEPTED'
+    LEFT JOIN donor_profiles dp ON dr.donor_id = dp.id
+    LEFT JOIN users u ON dp.user_id = u.id
+    ${whereClause}
+  `;
+  
+  const countRes = await pool.query(countQuery, params);
+  const totalRecords = parseInt(countRes.rows[0]?.total || '0', 10);
+
+  // Sorting
+  const orderByClause = `
+    ORDER BY
+      (CASE WHEN ra.status = 'ASSIGNED' AND ra.assigned_at < NOW() - INTERVAL '15 minutes' THEN 0 ELSE 1 END) ASC,
+      (CASE WHEN br.urgency_level = 'EMERGENCY' THEN 0 WHEN br.urgency_level = 'URGENT' THEN 1 ELSE 2 END) ASC,
+      dr.responded_at DESC,
+      ra.assigned_at ASC
+  `;
+
+  // Get data
+  const dataParams = [...params, offset, limit];
+  const dataQuery = `
+    SELECT br.id as request_id, br.patient_name, br.hospital_name, br.location, br.urgency_level, br.status as request_status,
+           bg.code as blood_group,
+           u.name as donor_name, u.email as donor_email, u.phone as donor_phone,
+           ra.status as assignment_status, ra.assigned_at,
+           (ra.status = 'ASSIGNED' AND ra.assigned_at < NOW() - INTERVAL '15 minutes') as is_overdue,
+           (CASE 
+             WHEN ra.status = 'ASSIGNED' AND ra.assigned_at < NOW() - INTERVAL '15 minutes' THEN 'ACTION_OVERDUE'
+             WHEN br.status = 'DONOR_RESPONDED' THEN 'INITIAL_CONTACT_PENDING'
+             WHEN br.status = 'COORDINATOR_ASSIGNED' THEN 'VISIT_CONFIRMATION_PENDING'
+             WHEN br.status = 'DONOR_CONFIRMED' AND dp.eligibility_status = 'PENDING' THEN 'SCREENING_PENDING'
+             WHEN br.status = 'DONOR_CONFIRMED' AND dp.eligibility_status = 'ELIGIBLE' THEN 'DONATION_LOG_PENDING'
+             ELSE 'GENERAL_FOLLOWUP'
+            END) as followup_reason
+    FROM request_assignments ra
+    JOIN blood_requests br ON ra.request_id = br.id
+    JOIN blood_groups bg ON br.blood_group_id = bg.id
+    JOIN coordinator_profiles cp ON ra.coordinator_id = cp.id
+    LEFT JOIN donor_responses dr ON dr.request_id = br.id AND dr.response_status = 'ACCEPTED'
+    LEFT JOIN donor_profiles dp ON dr.donor_id = dp.id
+    LEFT JOIN users u ON dp.user_id = u.id
+    ${whereClause}
+    ${orderByClause}
+    OFFSET $${paramIndex} LIMIT $${paramIndex + 1}
+  `;
+
+  const dataRes = await pool.query(dataQuery, dataParams);
+  
+  return {
+    followUps: dataRes.rows,
+    totalRecords,
+    page,
+    limit,
+    totalPages: Math.ceil(totalRecords / limit)
+  };
+}
+
+
+
 
 

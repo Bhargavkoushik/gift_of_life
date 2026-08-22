@@ -50,3 +50,24 @@ export const getCoordinatorDashboardData = async () => {
   const response = await api.get('/coordinator/dashboard');
   return response.data;
 };
+
+export const releaseDonor = async (id, donorId, reason = '') => {
+  const response = await api.post(`/coordinator/requests/${id}/release-donor`, {
+    donor_id: donorId,
+    reason
+  });
+  return response.data;
+};
+
+export const getDonorResponses = async (params = {}) => {
+  const response = await api.get('/coordinator/responses', { params });
+  return response.data;
+};
+
+export const getFollowUps = async (params = {}) => {
+  const response = await api.get('/coordinator/follow-ups', { params });
+  return response.data;
+};
+
+
+

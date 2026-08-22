@@ -25,8 +25,8 @@ export default function RequestHistory() {
   const getFriendlyStatus = (status) => {
     const mapping = {
       'FULFILLED': 'Donation Completed',
-      'CANCELLED': 'Request Cancelled',
-      'REJECTED': 'Request Denied',
+      'CANCELLED': 'Cancelled',
+      'REJECTED': 'Denied',
       'NO_DONOR_FOUND': 'No Donor Found'
     };
     return mapping[status] || status;
@@ -56,8 +56,8 @@ export default function RequestHistory() {
   return (
     <div className="page-stack max-w-4xl">
       <PageHeader
-        title="Request History"
-        description="A ledger of your past fulfilled, cancelled, or expired blood requests."
+        title="Past Requests"
+        description="View your completed, cancelled, rejected, and closed blood requests."
       />
 
       {errorMsg && (
@@ -68,7 +68,7 @@ export default function RequestHistory() {
 
       {!errorMsg && history.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm max-w-md mx-auto space-y-2">
-          <p className="text-slate-500 font-semibold text-xs">No historical requests found.</p>
+          <p className="text-slate-500 font-semibold text-xs">No past requests found.</p>
           <span className="text-xxs text-slate-400 font-medium leading-relaxed block">
             Completed or cancelled requests will show up in this archive.
           </span>
@@ -109,6 +109,7 @@ export default function RequestHistory() {
                 <span className="text-[10px] text-slate-400 font-medium">Closed: {req.closed_at ? new Date(req.closed_at).toLocaleDateString() : 'N/A'}</span>
                 <Link
                   to={`/receiver/requests/${req.id}`}
+                  state={{ from: 'past' }}
                   className="rounded-lg bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 text-xxs font-bold text-slate-700 transition cursor-pointer"
                 >
                   View Details

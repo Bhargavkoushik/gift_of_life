@@ -42,10 +42,10 @@ async function bootstrap() {
       console.log(`Created new user with ID: ${userId}`);
     }
 
-    // 2. Add ADMIN role
+    // 2. Add SUPER_ADMIN role
     await client.query(
       `INSERT INTO user_roles (user_id, role)
-       VALUES ($1, 'ADMIN')
+       VALUES ($1, 'SUPER_ADMIN')
        ON CONFLICT (user_id, role) DO NOTHING`,
       [userId]
     );

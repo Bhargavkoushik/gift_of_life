@@ -322,7 +322,7 @@ export default function NotificationManagement() {
         <div className="flex flex-wrap items-center gap-2 self-start md:self-center shrink-0">
           {n.request_id && (
             <button
-              onClick={() => navigate(`/admin/requests/${n.request_id}`)}
+              onClick={() => navigate(`/super-admin/requests/${n.request_id}`)}
               className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black transition cursor-pointer"
             >
               View Request

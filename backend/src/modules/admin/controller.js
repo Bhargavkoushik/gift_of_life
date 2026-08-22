@@ -33,8 +33,8 @@ export async function invite(req, res, next) {
     if (!name || !email || !role) {
       return res.status(400).json({ message: 'Name, email, and role are required' });
     }
-    if (!['ADMIN', 'COORDINATOR'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role' });
+    if (!['COORDINATOR', 'BLOOD_BANK_ADMIN'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role selection. Cannot invite new Super Admins.' });
     }
     const result = await adminService.inviteStaff(req.user.id, { name, email, role });
     return res.status(201).json({

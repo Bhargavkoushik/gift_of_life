@@ -1,5 +1,6 @@
 import * as coordinatorRepository from './repository.js';
 import * as donorRepository from '../donors/repository.js';
+import pool from '../../database/connection.js';
 
 async function verifyAssignment(requestId, coordinatorUserId) {
   const assignment = await coordinatorRepository.getActiveAssignment(requestId, coordinatorUserId);
@@ -45,6 +46,11 @@ export async function coordinateRequest(requestId, coordinatorUserId) {
     err.statusCode = 404;
     throw err;
   }
+  if (['FULFILLED', 'CANCELLED', 'REJECTED'].includes(request.status)) {
+    const err = new Error('Request is already completed or closed');
+    err.statusCode = 400;
+    throw err;
+  }
   await coordinatorRepository.updateRequestStatus(requestId, 'COORDINATOR_ASSIGNED');
   await coordinatorRepository.updateAssignmentStatus(requestId, coordinatorUserId, 'IN_PROGRESS');
   return { success: true };
@@ -58,11 +64,28 @@ export async function confirmVisit(requestId, coordinatorUserId) {
     err.statusCode = 404;
     throw err;
   }
+  if (['FULFILLED', 'CANCELLED', 'REJECTED'].includes(request.status)) {
+    const err = new Error('Request is already completed or closed');
+    err.statusCode = 400;
+    throw err;
+  }
   return await coordinatorRepository.updateRequestStatus(requestId, 'DONOR_CONFIRMED');
 }
 
 export async function recordScreening(requestId, data, coordinatorUserId) {
   await verifyAssignment(requestId, coordinatorUserId);
+  const request = await coordinatorRepository.getRequestDetails(requestId);
+  if (!request) {
+    const err = new Error('Blood request not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (['FULFILLED', 'CANCELLED', 'REJECTED'].includes(request.status)) {
+    const err = new Error('Request is already completed or closed');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const { donor_id, status, deferred_until } = data;
   if (!['ELIGIBLE', 'TEMPORARILY_DEFERRED', 'NOT_ELIGIBLE'].includes(status)) {
     const err = new Error('Invalid screening eligibility status');
@@ -77,6 +100,7 @@ export async function recordScreening(requestId, data, coordinatorUserId) {
   if (['TEMPORARILY_DEFERRED', 'NOT_ELIGIBLE'].includes(status)) {
     await coordinatorRepository.updateRequestStatus(requestId, 'PENDING');
     await coordinatorRepository.deactivateActiveAssignments(requestId);
+    await coordinatorRepository.updateDonorResponseStatus(requestId, donor_id, 'REJECTED');
   }
 
   return { success: true };
@@ -201,3 +225,83 @@ export async function deleteBloodInventory(id, actorId) {
 export async function getBloodGroups() {
   return await coordinatorRepository.getBloodGroups();
 }
+
+export async function releaseDonor(requestId, donorId, reason, coordinatorUserId) {
+  // 1. Verify coordinator assignment IDOR protection
+  await verifyAssignment(requestId, coordinatorUserId);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 2. Fetch request details and check if terminal
+    const reqDetails = await coordinatorRepository.getRequestDetails(requestId);
+    if (!reqDetails) {
+      const err = new Error('Blood request not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    if (['FULFILLED', 'CANCELLED', 'REJECTED'].includes(reqDetails.status)) {
+      const err = new Error('Request is already completed or closed');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // 3. Verify specific donor response is currently ACCEPTED
+    const donorRespRes = await client.query(
+      `SELECT response_status FROM donor_responses WHERE request_id = $1 AND donor_id = $2`,
+      [requestId, donorId]
+    );
+    if (donorRespRes.rows.length === 0 || donorRespRes.rows[0].response_status !== 'ACCEPTED') {
+      const err = new Error('No active accepted response found for this donor on this request');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // 4. Update donor response status to REJECTED with notes
+    const notes = reason 
+      ? `Donor cannot continue: ${reason.trim()}` 
+      : 'Donor cannot continue: Coordinator recorded release';
+      
+    await client.query(
+      `UPDATE donor_responses
+       SET response_status = 'REJECTED', notes = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE request_id = $2 AND donor_id = $3`,
+      [notes, requestId, donorId]
+    );
+
+    // 5. Reset request status back to PENDING so other donors can claim it
+    await coordinatorRepository.updateRequestStatus(requestId, 'PENDING', client);
+
+    // 6. Deactivate coordinator assignments for this request
+    await coordinatorRepository.deactivateActiveAssignments(requestId, client);
+
+    // 7. Write audit log
+    await coordinatorRepository.writeAuditLog(
+      coordinatorUserId,
+      'COORDINATOR_RELEASED_DONOR',
+      'BLOOD_REQUEST',
+      requestId,
+      { donor_id: donorId, reason: reason || 'Not specified' },
+      client
+    );
+
+    await client.query('COMMIT');
+    return { success: true };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getDonorResponses(coordinatorUserId, query) {
+  return await coordinatorRepository.getDonorResponsesPaginated(coordinatorUserId, query);
+}
+
+export async function getFollowUps(coordinatorUserId, query) {
+  return await coordinatorRepository.getFollowUpsPaginated(coordinatorUserId, query);
+}
+
+

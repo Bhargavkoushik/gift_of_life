@@ -6,7 +6,8 @@ import {
   coordinateRequest,
   confirmVisit,
   recordScreening,
-  completeDonationByCoordinator
+  completeDonationByCoordinator,
+  releaseDonor
 } from '../../../services/coordinatorService';
 
 export default function CoordinatorRequestDetails() {
@@ -28,6 +29,10 @@ export default function CoordinatorRequestDetails() {
   const [selectedDonorId, setSelectedDonorId] = useState('');
   const [screeningStatus, setScreeningStatus] = useState('ELIGIBLE');
   const [deferredUntil, setDeferredUntil] = useState('');
+
+  // Release donor modal state
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [releaseReason, setReleaseReason] = useState('');
 
   const loadDetails = async () => {
     try {
@@ -115,10 +120,36 @@ export default function CoordinatorRequestDetails() {
     }
   };
 
+  const executeReleaseDonor = async () => {
+    if (!data || !data.responses) return;
+    const activeResponses = data.responses.filter(r => r.response_status === 'ACCEPTED');
+    if (activeResponses.length === 0) return;
+
+    setActionLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const activeDonor = activeResponses[0];
+      await releaseDonor(id, activeDonor.donor_profile_id, releaseReason);
+      setSuccessMessage('Donor successfully marked as unable to continue. The request is now open for other donors.');
+      setShowReleaseModal(false);
+      setReleaseReason('');
+      await loadDetails();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to release donor.');
+      setShowReleaseModal(false);
+      setReleaseReason('');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) return <div className="text-center py-10 text-slate-500 font-medium">Loading details...</div>;
   if (!data) return <div className="text-center py-10 text-rose-500 font-medium">Request details not found.</div>;
 
   const { request, responses } = data;
+  const activeResponses = responses?.filter(r => r.response_status === 'ACCEPTED') || [];
+  const historicalResponses = responses?.filter(r => r.response_status !== 'ACCEPTED') || [];
 
   return (
     <div className="page-stack">
@@ -181,28 +212,71 @@ export default function CoordinatorRequestDetails() {
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Matched Donor Responses</h3>
-            {responses.length === 0 ? (
-              <p className="text-slate-500 text-sm">No donors have responded to this request yet.</p>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 select-none">Current Donor</h3>
+            {activeResponses.length === 0 ? (
+              <p className="text-slate-500 text-xs">No active donor has accepted this request yet.</p>
             ) : (
               <div className="space-y-4">
-                {responses.map((resp) => (
-                  <div key={resp.id} className="rounded-xl border border-slate-100 p-4 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center">
+                {activeResponses.map((resp) => (
+                  <div key={resp.id} className="rounded-xl border border-emerald-100 p-4 bg-emerald-50/20 flex flex-col justify-between gap-3">
                     <div>
-                      <h4 className="font-bold text-slate-900">{resp.donor_name}</h4>
-                      <p className="text-xs text-slate-500">Phone: {resp.donor_phone} | Email: {resp.donor_email}</p>
-                      <p className="text-xs text-slate-400 mt-1">Status: <span className="font-semibold text-blue-600">{resp.eligibility_status}</span></p>
-                      {resp.notes && <p className="text-xs italic text-slate-500 mt-1">"Notes: {resp.notes}"</p>}
+                      <h4 className="font-extrabold text-slate-900 text-sm">{resp.donor_name}</h4>
+                      <p className="text-xxs text-slate-500 font-medium mt-1">
+                        Phone: <a href={`tel:${resp.donor_phone}`} className="text-blue-600 hover:underline">{resp.donor_phone}</a> | Email: <a href={`mailto:${resp.donor_email}`} className="text-blue-600 hover:underline">{resp.donor_email}</a>
+                      </p>
+                      <p className="text-xxs text-slate-450 mt-1 font-semibold">
+                        Medical Screening Status: <span className="font-black text-brand-red">{resp.eligibility_status}</span>
+                      </p>
+                      {resp.notes && <p className="text-xxs italic text-slate-500 bg-slate-100/60 p-2 rounded-lg border border-slate-100 mt-2 font-normal">"Notes: {resp.notes}"</p>}
                     </div>
-                    {request.status === 'DONOR_CONFIRMED' && resp.eligibility_status === 'ELIGIBLE' && (
+
+                    <div className="flex gap-2 flex-wrap pt-2 border-t border-slate-100 select-none">
                       <button
-                        onClick={() => handleCompleteDonation(resp.donor_profile_id)}
+                        onClick={() => setShowReleaseModal(true)}
                         disabled={actionLoading}
-                        className="mt-4 md:mt-0 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition cursor-pointer"
+                        className="rounded-lg border border-rose-200 bg-rose-50/50 hover:bg-rose-100 hover:border-rose-350 px-3 py-1.5 text-xxs font-black text-rose-700 transition cursor-pointer disabled:opacity-50"
                       >
-                        Record Successful Donation
+                        Donor Cannot Continue
                       </button>
-                    )}
+
+                      {request.status === 'DONOR_CONFIRMED' && resp.eligibility_status === 'ELIGIBLE' && (
+                        <button
+                          onClick={() => handleCompleteDonation(resp.donor_profile_id)}
+                          disabled={actionLoading}
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xxs font-bold text-white hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
+                        >
+                          Record Successful Donation
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 select-none">Donor Response History</h3>
+            {historicalResponses.length === 0 ? (
+              <p className="text-slate-500 text-xs">No historical donor offers found for this request.</p>
+            ) : (
+              <div className="space-y-3">
+                {historicalResponses.map((resp) => (
+                  <div key={resp.id} className="rounded-xl border border-slate-100 p-3 bg-slate-50/60 flex flex-col gap-1">
+                    <div className="flex justify-between items-center flex-wrap gap-2">
+                      <h4 className="font-bold text-slate-800 text-xs">{resp.donor_name}</h4>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
+                        resp.response_status === 'REJECTED' 
+                          ? 'bg-rose-50 text-rose-700 border-rose-100' 
+                          : 'bg-slate-50 text-slate-650 border-slate-200'
+                      }`}>
+                        {resp.response_status === 'REJECTED' ? 'Released / Rejected' : resp.response_status}
+                      </span>
+                    </div>
+                    {resp.notes && <p className="text-xxs italic text-slate-500 mt-1">"{resp.notes}"</p>}
+                    <span className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                      Responded at: {new Date(resp.responded_at).toLocaleString()}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -257,7 +331,7 @@ export default function CoordinatorRequestDetails() {
                         onChange={(e) => setSelectedDonorId(e.target.value)}
                         className="w-full rounded-lg border border-slate-200 p-2 text-xs focus:outline-none"
                       >
-                        {responses.map((r) => (
+                        {activeResponses.map((r) => (
                           <option key={r.id} value={r.donor_profile_id}>{r.donor_name}</option>
                         ))}
                       </select>
@@ -350,6 +424,57 @@ export default function CoordinatorRequestDetails() {
                 className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 cursor-pointer transition text-xxs disabled:opacity-50"
               >
                 {actionLoading ? 'Completing...' : 'Complete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RELEASE DONOR CONFIRMATION MODAL */}
+      {showReleaseModal && activeResponses.length > 0 && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-sm p-6 space-y-4 font-semibold text-slate-700 text-xs animate-scale-up">
+            <h3 className="text-sm font-black text-slate-900 select-none">
+              Confirm Donor Release
+            </h3>
+            
+            <p className="text-slate-500 leading-relaxed font-sans text-xxs select-none font-normal">
+              Releasing this donor will make the request available to other matching donors. The current donor's offer will be marked as unable to continue and kept in history.
+            </p>
+
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 select-none">Reason (Optional)</label>
+              <textarea
+                value={releaseReason}
+                onChange={(e) => setReleaseReason(e.target.value)}
+                placeholder="e.g. Donor is unavailable or unreachable..."
+                className="w-full rounded-lg border border-slate-200 p-2.5 text-xs focus:outline-none h-16 resize-none font-normal"
+              />
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-2 select-none">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReleaseModal(false);
+                  setReleaseReason('');
+                }}
+                disabled={actionLoading}
+                className="rounded-xl border border-slate-250 bg-white hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 cursor-pointer transition text-xxs disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeReleaseDonor}
+                disabled={actionLoading}
+                className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 cursor-pointer transition text-xxs disabled:opacity-50"
+              >
+                {actionLoading ? 'Releasing...' : 'Release Donor'}
               </button>
             </div>
           </div>

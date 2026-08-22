@@ -40,7 +40,7 @@ export default function DonorAvailability() {
         ...prev,
         availability_status: updatedStatus
       }));
-      setSuccessMsg(`Your status has been updated successfully to ${newStatus === 'AVAILABLE' ? 'Ready to Donate' : 'Not Ready Right Now'}.`);
+      setSuccessMsg(`Your discovery status has been updated successfully to ${newStatus === 'AVAILABLE' ? 'Ready to Donate' : 'Not Ready Right Now'}.`);
     } catch (err) {
       setErrorMsg('Failed to update status. Please try again.');
     } finally {
@@ -62,7 +62,7 @@ export default function DonorAvailability() {
     <div className="page-stack max-w-xl">
       <PageHeader
         title="Donation Status"
-        description="Control your active status and review your medical eligibility records below."
+        description="Control your active search discovery status and review your medical records below."
       />
 
       <div className="space-y-6">
@@ -78,13 +78,13 @@ export default function DonorAvailability() {
           </div>
         )}
 
-        {/* Donation Status Card */}
+        {/* Discovery Status Card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex justify-between items-start">
             <div className="space-y-1 pr-4">
-              <h3 className="text-base font-bold text-slate-900">Donation Status</h3>
-              <p className="text-xs text-slate-555 text-slate-500 leading-relaxed">
-                Setting your status to "Ready to Donate" makes your profile searchable by coordinators for compatible local blood requests.
+              <h3 className="text-base font-bold text-slate-900">Discovery Status</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Setting your status to "Ready to Donate" makes your profile visible to coordinators for compatibility matching.
               </p>
             </div>
             <span
@@ -109,7 +109,7 @@ export default function DonorAvailability() {
               }`}
             >
               <div className="text-sm font-bold">Ready to Donate</div>
-              <div className="text-xs text-slate-555 text-slate-500 mt-1">Appear in matching queries for local blood requests when available.</div>
+              <div className="text-xs text-slate-500 mt-1">Appear in matching queries for local blood requests when available.</div>
             </button>
 
             <button
@@ -122,16 +122,21 @@ export default function DonorAvailability() {
               }`}
             >
               <div className="text-sm font-bold">Not Ready Right Now</div>
-              <div className="text-xs text-slate-555 text-slate-500 mt-1">Hide your profile from active donor search queries temporarily.</div>
+              <div className="text-xs text-slate-500 mt-1">Hide your profile from active donor search queries temporarily.</div>
             </button>
           </div>
         </div>
 
-        {/* Medical Screening Card */}
+        {/* Medical Eligibility Card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-4">
           <h3 className="text-base font-bold text-slate-900">Medical Eligibility</h3>
+          
+          <div className="p-3.5 bg-amber-50 border border-amber-100 rounded-xl text-xxs text-amber-800 font-bold select-none leading-relaxed">
+            ⚠️ <strong>Important Notice:</strong> "Ready to Donate" refers to discovery status only. Final medical clearance and donor screening are conducted physically by staff at <strong>ASN Raju Blood Centre, Bhimavaram</strong>, during your donation visit.
+          </div>
+
           <p className="text-xs text-slate-500 leading-relaxed">
-            Note: Final medical clearance and donation screening are conducted physically by medical officers at ASN Raju Blood Centre in Bhimavaram during your visit.
+            Medical eligibility is governed by health standards (weight, wellness parameters, and a minimum 3-month wait interval between donations).
           </p>
           
           <div className="grid gap-4 sm:grid-cols-2 pt-2">

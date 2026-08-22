@@ -45,14 +45,14 @@ export default function DonorDashboard() {
           url: shareUrl
         });
       } catch (err) {
-        // ignore abort or errors
+        // ignore
       }
     } else {
       try {
         await navigator.clipboard.writeText(`${shareText}\nLink: ${shareUrl}`);
         alert('Blood request details copied to clipboard!');
       } catch (err) {
-        alert('Failed to share details. Please copy the page URL manually.');
+        alert('Failed to share details.');
       }
     }
   };
@@ -66,181 +66,63 @@ export default function DonorDashboard() {
   }
 
   const { profile, requests, history, notifications } = data;
-
-  const isAvailable = profile?.availability_status === 'AVAILABLE';
   const totalDonations = history.filter((d) => d.status === 'COMPLETED').length;
 
-  // State-aware hero copy setup
-  let headline = "Your Donation Can Save a Life";
-  let supportingText = "Every donation can become someone's second chance.";
-  let secondaryLine = "Keep your status updated to receive matching alerts when you are ready.";
-  let ctaText = "View Blood Requests";
-  let ctaLink = "/donor/requests";
-
-  if (requests.length > 0) {
-    headline = "Someone May Need Your Blood Group";
-    supportingText = "Check the latest compatible request and see if you can help.";
-    secondaryLine = "You have matching blood requests waiting for your response.";
-    ctaText = "View Blood Requests";
-    ctaLink = "/donor/requests";
-  } else if (totalDonations === 0) {
-    headline = "Your First Donation Could Be Someone's Second Chance";
-    supportingText = "Be ready when someone needs your blood group.";
-    secondaryLine = "Set your status to discoverable to start receiving compatibility alerts.";
-    ctaText = "Become Ready to Donate";
-    ctaLink = "/donor/availability";
-  } else if (isAvailable) {
-    headline = "You're Ready to Help Someone";
-    supportingText = "Your profile is available for compatible blood requests in your area.";
-    secondaryLine = "You are currently discoverable for matches. We will notify you of any matches.";
-    ctaText = "View Blood Requests";
-    ctaLink = "/donor/requests";
-  } else if (totalDonations > 0) {
-    headline = "Your Last Donation Made a Difference";
-    supportingText = "Every donation can become someone's second chance.";
-    secondaryLine = "Keep your status updated to receive matching alerts when you are ready.";
-    ctaText = "View Blood Requests";
-    ctaLink = "/donor/requests";
-  }
-
-  const isProfileIncomplete =
-    !profile?.address?.trim() ||
-    !profile?.area?.trim() ||
-    !profile?.district?.trim() ||
-    !profile?.state?.trim() ||
-    !profile?.pincode?.trim() ||
-    !profile?.date_of_birth ||
-    !profile?.gender;
-
-  const recentRequests = requests.slice(0, 3);
+  const recentRequests = requests.slice(0, 2);
   const recentHistory = history.slice(0, 3);
   const recentNotifications = notifications.slice(0, 3);
 
-  const activeRequest = requests.find((req) => req.response_status === 'ACCEPTED' && !['FULFILLED', 'CANCELLED'].includes(req.status));
+  // Match / Eligibility Display calculations
+  const isDeferred = profile?.eligibility_status === 'TEMPORARILY_DEFERRED';
+  const isNotEligible = profile?.eligibility_status === 'NOT_ELIGIBLE';
+  
+  let eligibilityBadgeText = 'Eligible to Help';
+  let eligibilityBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-150';
+  let eligibilityDotClass = 'bg-emerald-500';
+  let eligibilityDesc = 'Your profile can currently appear in compatible blood request matching.';
+  let nextEligibleDateText = null;
 
-  const handleWithdraw = async (reqId) => {
-    if (window.confirm("Are you sure you want to withdraw your offer to help? This will alert the coordinator and reset the request's status so other local donors can be matched.")) {
-      try {
-        await donorService.respondToRequest(reqId, 'REJECTED');
-        window.location.reload();
-      } catch (err) {
-        alert(err.message || 'Failed to withdraw request');
-      }
+  if (isDeferred) {
+    eligibilityBadgeText = 'Not Eligible Yet';
+    eligibilityBadgeClass = 'bg-amber-50 text-amber-700 border-amber-150';
+    eligibilityDotClass = 'bg-amber-500';
+    eligibilityDesc = 'Your latest recorded donation is still within the required waiting period.';
+    if (profile?.deferred_until) {
+      const deferDate = new Date(profile.deferred_until).toLocaleDateString(undefined, { dateStyle: 'medium' });
+      nextEligibleDateText = `Next eligible matching date: ${deferDate}`;
     }
-  };
-
-  const getDonationStepsList = (req) => {
-    const status = req.status;
-    return [
-      { label: "Request Accepted", isCompleted: true, desc: "You declared 'I Can Help'." },
-      { 
-        label: "Centre Coordination", 
-        isCompleted: ['COORDINATOR_ASSIGNED', 'DONOR_CONFIRMED', 'FULFILLED'].includes(status), 
-        isActive: status === 'DONOR_RESPONDED',
-        desc: "ASN Raju team is reviewing details."
-      },
-      { 
-        label: "Visit Confirmed", 
-        isCompleted: ['DONOR_CONFIRMED', 'FULFILLED'].includes(status), 
-        isActive: status === 'COORDINATOR_ASSIGNED',
-        desc: "Appointment confirmation."
-      },
-      { 
-        label: "Medical Screening", 
-        isCompleted: req.eligibility_status === 'ELIGIBLE' || status === 'FULFILLED', 
-        isActive: status === 'DONOR_CONFIRMED' && req.eligibility_status !== 'ELIGIBLE',
-        desc: "Clinical evaluation at centre."
-      },
-      { 
-        label: "Donation Completed", 
-        isCompleted: status === 'FULFILLED', 
-        isActive: status === 'DONOR_CONFIRMED' && req.eligibility_status === 'ELIGIBLE',
-        desc: "Fulfillment logged by staff."
-      }
-    ];
-  };
+  } else if (isNotEligible) {
+    eligibilityBadgeText = 'Not Eligible';
+    eligibilityBadgeClass = 'bg-rose-50 text-rose-700 border-rose-150';
+    eligibilityDotClass = 'bg-rose-500';
+    eligibilityDesc = 'You are currently not eligible for compatible matching.';
+  }
 
   return (
     <div className="page-stack max-w-7xl">
-      {/* Profile Completion Warning */}
-      {isProfileIncomplete && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="space-y-1">
-            <h4 className="text-sm font-bold text-amber-900 font-sans">Complete your donor profile</h4>
-            <p className="text-xs text-amber-700 leading-relaxed">
-              Some required contact or location details are missing. Complete your profile to improve local blood request matching.
-            </p>
-          </div>
-          <Link
-            to="/donor/profile"
-            className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 transition shadow-sm whitespace-nowrap self-end sm:self-auto cursor-pointer"
-          >
-            Update My Details
-          </Link>
+      {/* Informational Hero Section (Responsive stable two-column composition) */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(320px,38%)]">
+        
+        {/* Left Column: Text Content */}
+        <div className="p-6 sm:p-8 flex flex-col justify-center text-left space-y-3">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-red block">
+            BLOOD DONATION
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight font-sans max-w-lg">
+            Your First Donation Could Be Someone's Second Chance
+          </h2>
+          <p className="text-sm text-slate-500 leading-relaxed font-sans max-w-md">
+            Be ready when someone needs your blood group. Keep your medical details updated to ensure notifications are compatible.
+          </p>
         </div>
-      )}
 
-      {/* Donor Hero Motivation Section */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 md:p-10 shadow-sm">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="space-y-4 max-w-xl flex-1 text-left">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-red block">
-              Blood Donation
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
-              {headline}
-            </h2>
-            <p className="text-sm sm:text-base text-slate-650 leading-relaxed">
-              {supportingText}
-            </p>
-            <p className="text-xs text-slate-500 font-medium">
-              {secondaryLine}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <Link
-                to={ctaLink}
-                className="rounded-lg bg-brand-red px-5 py-3 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-red-dark text-center cursor-pointer block sm:inline-block w-full sm:w-auto"
-              >
-                {ctaText}
-              </Link>
-            </div>
-          </div>
-
-          <div className="w-full md:w-[440px] lg:w-[480px] flex justify-center items-center shrink-0">
-            <div className="w-full aspect-[1.8/1] rounded-2xl overflow-hidden shadow-md border border-slate-100">
-              <img
-                src={donorHeroImage}
-                alt="Person donating blood at a blood donation center"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Donation Status Card */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Donation Status</div>
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${isAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
-              <span className="text-sm font-bold text-slate-800">
-                {isAvailable ? 'Ready to Donate' : 'Not Ready Right Now'}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              {isAvailable
-                ? "You're currently available to help with blood requests. Actual medical screening happens at the blood centre."
-                : "You're not currently receiving active donation alerts. You can still browse and share blood requests."}
-            </p>
-          </div>
-          <Link
-            to="/donor/availability"
-            className="text-xs font-bold text-brand-red hover:underline shrink-0 self-start sm:self-auto"
-          >
-            Change Status →
-          </Link>
+        {/* Right Column: Flush Image (No inner borders or shadows, visual merge to parent border) */}
+        <div className="relative min-h-[200px] md:min-h-full overflow-hidden shrink-0">
+          <img
+            src={donorHeroImage}
+            alt="Person donating blood at a blood donation center"
+            className="absolute inset-0 w-full h-full object-cover block"
+          />
         </div>
       </div>
 
@@ -250,333 +132,197 @@ export default function DonorDashboard() {
         </div>
       )}
 
-      {/* Summary Metrics Grid */}
+      {/* METRICS ROW (Immediately below hero) */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {/* Blood Group */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-1">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your Blood Group</div>
-          <div className="text-3xl font-extrabold text-brand-red">{profile?.blood_group || 'N/A'}</div>
-          <div className="text-xxs text-slate-500 font-medium">Pending blood-centre verification</div>
+          <div className="text-2xl font-extrabold text-brand-red">{profile?.blood_group || 'N/A'}</div>
+          <div className="text-xxs text-slate-400 font-medium">Recorded Group</div>
         </div>
 
-        {/* Total Donations */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
+        {/* Donations Completed */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-1">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Donations Completed</div>
-          <div className="text-3xl font-extrabold text-slate-900">{totalDonations}</div>
-          <div className="text-xxs text-slate-500 font-medium">Verified completed donations</div>
+          <div className="text-2xl font-extrabold text-slate-900">{totalDonations}</div>
+          <div className="text-xxs text-slate-400 font-medium">Verified completed donations</div>
         </div>
 
         {/* Matching Requests */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Blood Requests You Can Help With</div>
-          <div className="text-3xl font-extrabold text-slate-900">{requests.length}</div>
-          <div className="text-xxs text-slate-500 font-medium">Compatible matches</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Matching Requests</div>
+          <div className="text-2xl font-extrabold text-slate-900">{requests.length}</div>
+          <div className="text-xxs text-slate-400 font-medium">Compatible active requests</div>
         </div>
 
         {/* Last Donation Date */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-1">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Last Donation</div>
-          <div className="text-sm font-bold text-slate-900 pt-2 pb-1">
+          <div className="text-sm font-bold text-slate-800 pt-2 pb-1">
             {profile?.last_donation_date
               ? new Date(profile.last_donation_date).toLocaleDateString(undefined, { dateStyle: 'medium' })
               : 'No donation yet'}
           </div>
-          <div className="text-xxs text-slate-500 font-medium">Minimum wait time: 3 months</div>
+          <div className="text-xxs text-slate-400 font-medium">Recorded Date</div>
         </div>
       </div>
 
-      {/* Main Dashboard Cards Grid */}
-      <div className="grid gap-6 lg:grid-cols-3 pt-2">
-        {/* Left Column: Blood Requests or Your Donation Journey */}
-        <div className="lg:col-span-2 space-y-6">
-          {activeRequest ? (
-            /* ACTIVE DONATION JOURNEY CARD */
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 font-sans">Your Donation Journey</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Active coordination workflow for patient <strong>{activeRequest.patient_name}</strong></p>
-                </div>
-                <span className="text-lg font-black text-brand-red uppercase">{activeRequest.blood_group}</span>
-              </div>
-
-              {/* Progress Stepper Timeline (Responsive: Horizontal on Desktop, Vertical on Mobile) */}
-              <div className="py-4">
-                {/* Desktop Stepper */}
-                <div className="hidden md:flex justify-between items-start relative">
-                  <div className="absolute top-4 left-0 right-0 h-0.5 bg-slate-100 z-0"></div>
-                  {getDonationStepsList(activeRequest).map((step, idx) => (
-                    <div key={idx} className="flex-1 flex flex-col items-center text-center px-2 z-10">
-                      <div className={`h-8 w-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition duration-200 ${
-                        step.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' :
-                        step.isActive ? 'bg-brand-red border-brand-red text-white animate-pulse' :
-                        'bg-white border-slate-200 text-slate-400'
-                      }`}>
-                        {step.isCompleted ? '✓' : idx + 1}
-                      </div>
-                      <span className={`text-xs mt-3 font-bold block ${step.isCompleted ? 'text-slate-800' : step.isActive ? 'text-brand-red' : 'text-slate-400'}`}>
-                        {step.label}
-                      </span>
-                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed max-w-[120px]">{step.desc}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Mobile Stepper */}
-                <div className="md:hidden space-y-6 relative pl-6 border-l border-slate-100 ml-4 py-2">
-                  {getDonationStepsList(activeRequest).map((step, idx) => (
-                    <div key={idx} className="relative">
-                      <div className={`absolute -left-[38px] top-0 h-6 w-6 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${
-                        step.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' :
-                        step.isActive ? 'bg-brand-red border-brand-red text-white animate-pulse' :
-                        'bg-white border-slate-200 text-slate-400'
-                      }`}>
-                        {step.isCompleted ? '✓' : idx + 1}
-                      </div>
-                      <h4 className={`text-xs font-bold ${step.isCompleted ? 'text-slate-800' : step.isActive ? 'text-brand-red' : 'text-slate-400'}`}>
-                        {step.label}
-                      </h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{step.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Dynamic Context Card Details */}
-              <div className="rounded-xl border border-slate-100 p-4 bg-slate-50/50 space-y-4">
-                <div className="grid md:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Hospital</span>
-                    <span className="font-semibold text-slate-800">{activeRequest.hospital_name}</span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Location</span>
-                    <span className="font-semibold text-slate-800">{activeRequest.location}</span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Required Units</span>
-                    <span className="font-semibold text-slate-800">{activeRequest.required_units} Units</span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Urgency</span>
-                    <span className="font-semibold text-brand-red">{activeRequest.urgency_level}</span>
-                  </div>
-                </div>
-
-                {/* Verified centre instructions banner */}
-                {['COORDINATOR_ASSIGNED', 'DONOR_CONFIRMED'].includes(activeRequest.status) && (
-                  <div className="rounded-xl border border-emerald-250 bg-emerald-50/50 p-4 space-y-2 mt-4">
-                    <div className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-                      📍 Scheduled Visit to ASN Raju Blood Bank
-                    </div>
-                    <p className="text-xs text-emerald-700 leading-relaxed">
-                      Please visit the physical centre at Bhimavaram for screening and donation:
-                    </p>
-                    <div className="text-xs text-emerald-800 bg-white/60 p-3 rounded-lg border border-emerald-100 font-mono leading-relaxed">
-                      D. No. 24-1-1, R.K. Plaza,<br />
-                      (Sarovar Complex), Juvvalapalem Road,<br />
-                      Bhimavaram - 534 202
-                    </div>
-                    <div className="pt-2 flex gap-3">
-                      <a
-                        href="https://www.google.com/maps/search/?api=1&query=ASN+Raju+Charitable+Trust+Blood+Bank+Bhimavaram"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm cursor-pointer"
-                      >
-                        Get Directions
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap justify-between items-center gap-4 border-t border-slate-100 pt-4 text-xs">
-                <button
-                  onClick={() => handleWithdraw(activeRequest.id)}
-                  className="rounded-lg border border-slate-200 px-4 py-2 font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition cursor-pointer"
-                >
-                  Withdraw Offer to Help
-                </button>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleShare(activeRequest)}
-                    className="rounded-lg bg-brand-red px-4 py-2 font-bold text-white hover:bg-brand-red-dark transition cursor-pointer"
-                  >
-                    Share Request
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* STANDARD REQUESTS LIST */
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Blood Requests You Can Help With</h3>
-                <Link to="/donor/requests" className="text-xxs font-bold text-brand-red hover:underline">
-                  View All Blood Requests →
-                </Link>
-              </div>
-
-              {recentRequests.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-100 p-8 text-center text-xs text-slate-400 font-medium space-y-1">
-                  <div className="font-bold text-slate-800">No blood requests near you right now.</div>
-                  <div>We'll show relevant requests here when they become available.</div>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {recentRequests.map((req) => {
-                    const isAccepted = req.response_status === 'ACCEPTED';
-                    const showDirections = isAccepted && ['COORDINATOR_ASSIGNED', 'DONOR_CONFIRMED', 'FULFILLED'].includes(req.status);
-
-                    return (
-                      <div key={req.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 space-y-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-xs font-bold text-brand-red uppercase">{req.blood_group} · {req.required_units} Units Needed</div>
-                            <div className="text-sm font-bold text-slate-800 mt-1">{req.hospital_name}</div>
-                            <div className="text-xxs text-slate-500 mt-0.5">{req.location}</div>
-                          </div>
-                        </div>
-
-                        <div className="grid gap-2 sm:grid-cols-2 text-xxs text-slate-650 pt-1">
-                          <div>
-                            <strong className="text-slate-700">Needed by:</strong> {new Date(req.required_date_time).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                          </div>
-                          <div>
-                            <strong className="text-slate-700">Patient:</strong> {req.patient_name || 'Anonymous'} {req.patient_age ? `· ${req.patient_age} years` : ''}
-                          </div>
-                          <div className="sm:col-span-2">
-                            <strong className="text-slate-700">For:</strong> {req.description || 'Surgery / Treatment'}
-                          </div>
-                        </div>
-
-                        {/* Physical Confirmation address banner */}
-                        {showDirections && (
-                          <div className="rounded-xl border border-emerald-250 bg-emerald-50/50 p-4 space-y-2">
-                            <div className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-                              📍 Donation Visit Confirmed
-                            </div>
-                            <p className="text-xxs text-emerald-700 leading-relaxed">
-                              Please visit <strong>ASN Raju Charitable Trust Blood Bank & Components</strong> in Bhimavaram for the donation process.
-                            </p>
-                            <div className="text-xxs text-emerald-800 bg-white/60 p-2.5 rounded-lg border border-emerald-100 font-mono">
-                              D. No. 24-1-1, R.K. Plaza,<br />
-                              (Sarovar Complex), Juvvalapalem Road,<br />
-                              Bhimavaram - 534 202
-                            </div>
-                            <a
-                              href="https://www.google.com/maps/search/?api=1&query=ASN+Raju+Charitable+Trust+Blood+Bank+Bhimavaram"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xxs font-bold text-white hover:bg-emerald-700 transition shadow-sm mt-1"
-                            >
-                              Get Directions →
-                            </a>
-                          </div>
-                        )}
-
-                        <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xxs text-slate-500">
-                          <span className="font-medium">Urgency: <strong className="text-brand-red font-semibold">{req.urgency_level}</strong></span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleShare(req)}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-650 hover:bg-slate-50 transition cursor-pointer"
-                            >
-                              Share
-                            </button>
-                            <Link
-                              to="/donor/requests"
-                              className="rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-1.5 font-semibold transition"
-                            >
-                              View Details →
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Recent Updates & Recent Donations */}
-        <div className="space-y-6">
-          {/* Recent Updates */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Recent Updates</h3>
-              <Link to="/donor/notifications" className="text-xxs font-bold text-brand-red hover:underline">
-                View All Updates →
-              </Link>
+      {/* TWO COLUMN GRID: Left (Matching Eligibility) vs Right (Recent Updates) */}
+      <div className="grid gap-6 md:grid-cols-2 pt-2">
+        
+        {/* Donation/Matching Eligibility Card */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-sans">Matching Eligibility</h3>
+            
+            <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${eligibilityDotClass}`}></span>
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${eligibilityBadgeClass}`}>
+                {eligibilityBadgeText}
+              </span>
             </div>
 
-            {recentNotifications.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-100 p-8 text-center text-xs text-slate-400 font-medium space-y-1">
-                <div className="font-bold text-slate-800">You're all caught up.</div>
-                <div>New blood request and account updates will appear here.</div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentNotifications.map((item) => {
-                  const isRead = item.status === 'READ';
-                  return (
-                    <div key={item.id} className="text-xs space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-800">{item.title}</span>
-                        {!isRead && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-brand-red"></span>
-                        )}
-                      </div>
-                      <p className="text-slate-500 text-xxs line-clamp-2 leading-relaxed">
-                        {item.message}
-                      </p>
-                    </div>
-                  );
-                })}
+            <p className="text-xs text-slate-500 leading-relaxed font-sans">
+              {eligibilityDesc}
+            </p>
+
+            {nextEligibleDateText && (
+              <div className="text-xs font-bold text-brand-red bg-rose-50/50 p-2.5 rounded-lg border border-rose-100 inline-block font-mono">
+                {nextEligibleDateText}
               </div>
             )}
           </div>
 
-          {/* Recent Donations */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Recent Donations</h3>
-              <Link to="/donor/donation-history" className="text-xxs font-bold text-brand-red hover:underline">
-                View Donation History →
+          <div className="pt-3 border-t border-slate-100 text-xxs text-slate-450 leading-normal font-sans">
+            ℹ️ Final medical eligibility is confirmed by medical staff at the blood centre.
+          </div>
+        </div>
+
+        {/* Recent Updates (Notifications preview) */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-sans">Recent Updates</h3>
+              <Link to="/donor/notifications" className="text-xxs font-bold text-brand-red hover:underline">
+                View All →
               </Link>
             </div>
 
-            {recentHistory.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-100 p-8 text-center text-xs text-slate-400 font-medium space-y-1">
-                <div className="font-bold text-slate-800">No donations recorded yet.</div>
-                <div>Your completed donations will appear here.</div>
+            {recentNotifications.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-400 font-sans">
+                You're all caught up. No new notifications.
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 text-xs font-medium text-slate-600">
-                {recentHistory.map((item) => (
-                  <div key={item.id} className="py-3 flex justify-between items-center first:pt-0 last:pb-0">
-                    <div>
-                      <div className="font-bold text-slate-800">
-                        {new Date(item.donation_date).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                      </div>
-                      <div className="text-slate-400 text-xxs mt-0.5">
-                        ASN Raju Blood Centre, Bhimavaram
-                      </div>
+              <div className="space-y-3.5">
+                {recentNotifications.map((item) => (
+                  <div key={item.id} className="text-xs leading-relaxed space-y-0.5 font-sans">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                      <span>{item.title}</span>
+                      {item.status !== 'READ' && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-brand-red shrink-0"></span>
+                      )}
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xxs font-bold text-emerald-700 border border-emerald-100">
-                      {item.status}
-                    </span>
+                    <p className="text-slate-500 text-xxs line-clamp-1">{item.message}</p>
                   </div>
                 ))}
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* ACTIVE BLOOD REQUESTS */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-sans">Active Blood Requests</h3>
+          <Link to="/donor/requests" className="text-xxs font-bold text-brand-red hover:underline">
+            View All →
+          </Link>
+        </div>
+
+        {recentRequests.length === 0 ? (
+          <div className="py-8 text-center text-xs text-slate-400 font-medium space-y-1">
+            <div className="font-bold text-slate-800 font-sans">No matching blood requests right now.</div>
+            <div className="font-sans">We will show relevant requests here when they become available.</div>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {recentRequests.map((req) => (
+              <div key={req.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 space-y-3 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-xs font-bold text-brand-red uppercase font-sans">{req.blood_group} · {req.required_units} Units</span>
+                      <h4 className="text-sm font-bold text-slate-800 mt-0.5 font-sans">{req.hospital_name}</h4>
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200 uppercase font-sans">
+                      {req.urgency_level}
+                    </span>
+                  </div>
+                  
+                  <div className="text-xxs text-slate-500 space-y-1 font-sans">
+                    <div><strong>Patient:</strong> {req.patient_name || 'Individual Patient'}</div>
+                    <div><strong>Required by:</strong> {new Date(req.required_date_time).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>
+                    <div className="line-clamp-2"><strong>Details:</strong> {req.description || 'Surgery / Medical Treatment'}</div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex justify-between items-center gap-2">
+                  <button
+                    onClick={() => handleShare(req)}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xxs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer font-sans"
+                  >
+                    Share
+                  </button>
+                  <Link
+                    to="/donor/requests"
+                    className="rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 px-2.5 py-1.5 text-xxs font-bold transition font-sans"
+                  >
+                    View Details
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* RECENT DONATIONS */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-sans">Recent Donations</h3>
+          <Link to="/donor/donation-history" className="text-xxs font-bold text-brand-red hover:underline">
+            View All →
+          </Link>
+        </div>
+
+        {recentHistory.length === 0 ? (
+          <div className="py-6 text-center text-xs text-slate-400 font-sans">
+            No donations recorded yet.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100 text-xs text-slate-600 font-medium font-sans">
+            {recentHistory.map((item) => (
+              <div key={item.id} className="py-3 flex justify-between items-center first:pt-0 last:pb-0">
+                <div>
+                  <div className="font-bold text-slate-850">
+                    {new Date(item.donation_date).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                  </div>
+                  <div className="text-slate-400 text-xxs mt-0.5">
+                    {item.hospital_name || 'ASN Raju Blood Centre'}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-700 font-semibold">{item.units} Unit(s)</span>
+                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xxs font-bold text-emerald-700 border border-emerald-100">
+                    {item.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

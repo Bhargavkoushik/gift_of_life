@@ -38,6 +38,32 @@ export async function getProfile(req, res, next) {
 export async function updateProfile(req, res, next) {
   try {
     const validatedData = updateProfileSchema.parse(req.body);
+    
+    // Fetch the current profile to enforce comparison checks on protected fields
+    const currentProfile = await donorService.getDonorProfile(req.user.id);
+    if (!currentProfile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Donor profile not found.'
+      });
+    }
+
+    if (validatedData.name !== currentProfile.name) {
+      return res.status(400).json({
+        success: false,
+        code: 'PROTECTED_FIELD_MODIFICATION',
+        message: 'Changing Full Name is restricted. Contact a coordinator to update verified identity details.'
+      });
+    }
+
+    if (Number(validatedData.blood_group_id) !== Number(currentProfile.blood_group_id)) {
+      return res.status(400).json({
+        success: false,
+        code: 'PROTECTED_FIELD_MODIFICATION',
+        message: 'Changing Blood Group is restricted once registered for matching. Contact a coordinator to update medical details.'
+      });
+    }
+
     const updated = await donorService.updateDonorProfile(req.user.id, validatedData);
     return res.status(200).json({
       success: true,
@@ -107,6 +133,15 @@ export async function respondToRequest(req, res, next) {
   try {
     const { id: requestId } = req.params;
     const validatedData = respondSchema.parse(req.body);
+
+    if (validatedData.response_status === 'ACCEPTED') {
+      return res.status(400).json({
+        success: false,
+        code: 'DIRECT_ACCEPTANCE_DISABLED',
+        message: 'Direct acceptance via API is disabled. Please complete the prefilled Google Form to claim this request.'
+      });
+    }
+
     const result = await donorService.respondToRequest(
       req.user.id,
       requestId,

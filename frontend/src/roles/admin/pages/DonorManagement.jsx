@@ -250,7 +250,7 @@ export default function DonorManagement() {
                 {donors.map(donor => (
                   <tr
                     key={donor.id}
-                    onClick={() => navigate(`/admin/donors/${donor.id}`)}
+                    onClick={() => navigate(`/super-admin/donors/${donor.id}`)}
                     className="hover:bg-slate-50/70 transition duration-100 cursor-pointer"
                   >
                     <td className="px-6 py-4">
@@ -285,7 +285,7 @@ export default function DonorManagement() {
             {donors.map(donor => (
               <div
                 key={donor.id}
-                onClick={() => navigate(`/admin/donors/${donor.id}`)}
+                onClick={() => navigate(`/super-admin/donors/${donor.id}`)}
                 className="rounded-2xl border border-slate-200 bg-white p-4.5 shadow-sm space-y-3.5 cursor-pointer hover:border-slate-300 transition duration-150"
               >
                 <div className="flex justify-between items-start">

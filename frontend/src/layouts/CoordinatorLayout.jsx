@@ -153,7 +153,7 @@ export default function CoordinatorLayout() {
     { to: '/coordinator/dashboard', label: 'Dashboard', end: true },
     { to: '/coordinator/requests', label: 'Assigned Requests' },
     { to: '/coordinator/donor-responses', label: 'Donor Responses' },
-    { to: '/coordinator/follow-ups', label: 'Follow-ups' },
+    { to: '/coordinator/follow-ups', label: 'Needs Attention' },
     { to: '/coordinator/notifications', label: 'Notifications' },
   ];
 

@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation, useOutletContext } from 'react-router-dom';
 import PageHeader from '../../../components/PageHeader';
 import * as receiverService from '../../../services/receiverService';
 
 export default function RequestDetails() {
   const { id } = useParams();
+  const location = useLocation();
+  const outletContext = useOutletContext();
+  const setActiveSourceOverride = outletContext?.setActiveSourceOverride;
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -42,15 +46,15 @@ export default function RequestDetails() {
 
   const getFriendlyStatus = (status) => {
     const mapping = {
-      'PENDING': 'Coordinator Reviewing',
-      'APPROVED': 'Coordinator Reviewing',
+      'PENDING': 'Reviewing',
+      'APPROVED': 'Reviewing',
       'DONORS_ALERTED': 'Searching Donors',
       'DONOR_RESPONDED': 'Donor Response Received',
-      'COORDINATOR_ASSIGNED': 'Coordinator is coordinating',
+      'COORDINATOR_ASSIGNED': 'Coordinating',
       'DONOR_CONFIRMED': 'Visit Confirmed',
-      'FULFILLED': 'Request Fulfilled',
-      'CANCELLED': 'Request Cancelled',
-      'REJECTED': 'Request Denied',
+      'FULFILLED': 'Donation Completed',
+      'CANCELLED': 'Cancelled',
+      'REJECTED': 'Denied',
       'NO_DONOR_FOUND': 'No Donor Found'
     };
     return mapping[status] || status;
@@ -75,6 +79,43 @@ export default function RequestDetails() {
     }
   };
 
+  // Determine back navigation context
+  const origin = location.state?.from; // 'dashboard', 'ongoing', 'past'
+  const requestStatus = data?.request?.status;
+  const isClosed = ['FULFILLED', 'CANCELLED', 'REJECTED', 'NO_DONOR_FOUND'].includes(requestStatus);
+
+  let backLink = '/receiver/requests';
+  let backLabel = 'Ongoing Requests';
+  let activeSource = 'ongoing';
+
+  if (origin === 'dashboard') {
+    backLink = '/receiver/dashboard';
+    backLabel = 'Dashboard';
+    activeSource = 'dashboard';
+  } else if (origin === 'ongoing') {
+    backLink = '/receiver/requests';
+    backLabel = 'Ongoing Requests';
+    activeSource = 'ongoing';
+  } else if (origin === 'past') {
+    backLink = '/receiver/history';
+    backLabel = 'Past Requests';
+    activeSource = 'past';
+  } else if (requestStatus) {
+    // Fallback based on status
+    if (isClosed) {
+      backLink = '/receiver/history';
+      backLabel = 'Past Requests';
+      activeSource = 'past';
+    }
+  }
+
+  // Set activeSourceOverride when details load or when context changes
+  useEffect(() => {
+    if (setActiveSourceOverride && requestStatus) {
+      setActiveSourceOverride(activeSource);
+    }
+  }, [setActiveSourceOverride, requestStatus, activeSource]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -94,20 +135,20 @@ export default function RequestDetails() {
     );
   }
 
-  const { request, donorResponsesCount, milestones } = data;
-  const isCancellable = !['FULFILLED', 'CANCELLED', 'REJECTED'].includes(request.status);
+  const { request, milestones } = data;
+  const isCancellable = !['FULFILLED', 'CANCELLED', 'REJECTED', 'NO_DONOR_FOUND'].includes(request.status);
 
   return (
     <div className="page-stack max-w-4xl relative">
       <div className="flex items-center gap-2 text-xxs font-bold text-slate-400 uppercase tracking-wider mb-2">
-        <Link to="/receiver/requests" className="hover:text-brand-red">Requests</Link>
+        <Link to={backLink} className="hover:text-brand-red">{backLabel}</Link>
         <span>/</span>
         <span className="text-slate-600">Details</span>
       </div>
 
       <PageHeader
         title={`Request for Patient: ${request.patient_name}`}
-        description="Verify details, audit coordinator updates, and review physical visit logs."
+        description="Review your blood request details and donation progress."
       />
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -132,30 +173,30 @@ export default function RequestDetails() {
             <div className="grid gap-4 sm:grid-cols-2 text-xxs leading-relaxed font-semibold text-slate-500">
               <div>
                 <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">Required Before</span>
-                <span className="text-slate-800">
+                <span className="text-slate-885">
                   {new Date(request.required_date_time).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} · {new Date(request.required_date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">Urgency Level</span>
-                <span className="text-slate-800 uppercase">{request.urgency_level}</span>
+                <span className="text-slate-885 uppercase">{request.urgency_level}</span>
               </div>
               <div>
                 <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">Hospital Name</span>
-                <span className="text-slate-800">{request.hospital_name}</span>
+                <span className="text-slate-885">{request.hospital_name}</span>
               </div>
               <div>
                 <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">City/Town Location</span>
-                <span className="text-slate-800">{request.location}</span>
+                <span className="text-slate-885">{request.location}</span>
               </div>
               <div className="sm:col-span-2">
                 <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">Hospital Address</span>
-                <span className="text-slate-800">{request.hospital_address}</span>
+                <span className="text-slate-885">{request.hospital_address}</span>
               </div>
               {request.description && (
                 <div className="sm:col-span-2">
                   <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">Case Details / Medical Purpose</span>
-                  <span className="text-slate-800 leading-normal block font-medium">{request.description}</span>
+                  <span className="text-slate-885 leading-normal block font-medium">{request.description}</span>
                 </div>
               )}
             </div>
@@ -218,7 +259,7 @@ export default function RequestDetails() {
                     )}
                   </span>
                   <div>
-                    <h4 className={`text-xs font-bold leading-normal ${m.completed ? 'text-slate-800' : 'text-slate-350'}`}>
+                    <h4 className={`text-xs font-bold leading-normal ${m.completed ? 'text-slate-800' : 'text-slate-300'}`}>
                       {m.label}
                     </h4>
                     {m.completed && m.timestamp && (
@@ -238,7 +279,7 @@ export default function RequestDetails() {
                 {request.status === 'FULFILLED' ? (
                   "Donation completed for this request."
                 ) : ['DONOR_RESPONDED', 'COORDINATOR_ASSIGNED', 'DONOR_CONFIRMED'].includes(request.status) ? (
-                  "Your request is being coordinated. A donor has offered to help, and the Trust team is arranging the donation."
+                  "Your request is being coordinated. A donor has offered to help, and the coordination team is arranging the donation."
                 ) : ['CANCELLED', 'REJECTED'].includes(request.status) ? (
                   "This request is closed or cancelled."
                 ) : (

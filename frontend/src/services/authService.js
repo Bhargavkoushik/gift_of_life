@@ -80,4 +80,29 @@ export const logoutServer = async () => {
   return response.data;
 };
 
+export const getSetupSuperAdminStatus = async () => {
+  const response = await api.get('/auth/setup-super-admin/status');
+  return response.data;
+};
+
+export const setupSuperAdmin = async (name, email, phone, password) => {
+  const response = await api.post('/auth/setup-super-admin', { name, email, phone, password });
+  return response.data;
+};
+
+export const sendVerificationOtp = async (method) => {
+  const response = await api.post('/auth/verification/send', { method });
+  return response.data;
+};
+
+export const verifyOtp = async (code) => {
+  const response = await api.post('/auth/verification/verify', { code });
+  return response.data;
+};
+
+export const getAuthConfig = async () => {
+  const response = await api.get('/auth/config');
+  return response.data;
+};
+
 export default api;

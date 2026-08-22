@@ -10,18 +10,18 @@ const createRequestSchema = z.object({
   location: z.string().min(1, 'Location is required'),
   required_date_time: z.string().min(1, 'Required date and time is required'),
   urgency_level: z.enum(['NORMAL', 'URGENT', 'EMERGENCY']),
-  description: z.string().optional().nullable()
+  description: z.string().optional().nullable(),
+  relation_type: z.enum(['MYSELF', 'SOMEONE_ELSE']).optional()
 });
 
 const updateProfileSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  phone: z.string().min(1, 'Phone is required'),
   address: z.string().min(1, 'Address is required'),
   area: z.string().min(1, 'Area is required'),
   district: z.string().min(1, 'District is required'),
   state: z.string().min(1, 'State is required'),
   pincode: z.string().min(1, 'Pincode is required'),
-  receiver_type: z.enum(['INDIVIDUAL', 'PATIENT_ATTENDANT', 'HOSPITAL'])
+  receiver_type: z.enum(['INDIVIDUAL', 'PATIENT_ATTENDANT', 'HOSPITAL']),
+  secondary_phone: z.string().max(50).optional().nullable()
 });
 
 export async function getProfile(req, res, next) {

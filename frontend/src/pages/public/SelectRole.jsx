@@ -79,7 +79,8 @@ export default function SelectRole() {
     if (role === 'DONOR') navigate('/donor/dashboard');
     else if (role === 'RECEIVER') navigate('/receiver/dashboard');
     else if (role === 'COORDINATOR') navigate('/coordinator/dashboard');
-    else if (role === 'ADMIN') navigate('/admin/dashboard');
+    else if (role === 'ADMIN' || role === 'SUPER_ADMIN') navigate('/super-admin/dashboard');
+    else if (role === 'BLOOD_BANK_ADMIN') navigate('/blood-bank-admin/dashboard');
   };
 
   const onDonorSubmit = async (data) => {
@@ -218,24 +219,47 @@ export default function SelectRole() {
             </article>
           )}
 
-          {/* ADMIN CONSOLE CARD (Only visible if admin role is assigned) */}
-          {roles.includes('ADMIN') && (
+          {/* SUPER ADMIN WORKSPACE CARD (Only visible if super admin or admin role is assigned) */}
+          {(roles.includes('SUPER_ADMIN') || roles.includes('ADMIN')) && (
             <article className="rounded-2xl border border-purple-200 bg-purple-50/10 p-6 shadow-sm flex flex-col justify-between">
               <div>
                 <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-purple-100 text-purple-700">
                   Active Profile
                 </span>
-                <h3 className="mt-4 text-lg font-bold text-slate-900">Admin Console</h3>
+                <h3 className="mt-4 text-lg font-bold text-slate-900">Super Admin Workspace</h3>
                 <p className="mt-2 text-sm text-slate-500">
                   Full access to audit logs, staff management, invitations, and trust statistics.
                 </p>
               </div>
               <div className="mt-6">
                 <button
-                  onClick={() => handleSelectRole('ADMIN')}
+                  onClick={() => handleSelectRole(roles.includes('SUPER_ADMIN') ? 'SUPER_ADMIN' : 'ADMIN')}
                   className="w-full rounded-lg bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-700"
                 >
-                  Enter Admin Dashboard
+                  Enter Super Admin Workspace
+                </button>
+              </div>
+            </article>
+          )}
+
+          {/* BLOOD BANK ADMIN CARD (Only visible if blood bank admin role is assigned) */}
+          {roles.includes('BLOOD_BANK_ADMIN') && (
+            <article className="rounded-2xl border border-indigo-200 bg-indigo-50/10 p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-indigo-100 text-indigo-700">
+                  Active Profile
+                </span>
+                <h3 className="mt-4 text-lg font-bold text-slate-900">Blood Bank Admin Workspace</h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Create and manage blood donation requests directly on behalf of patient attendants or hospitals.
+                </p>
+              </div>
+              <div className="mt-6">
+                <button
+                  onClick={() => handleSelectRole('BLOOD_BANK_ADMIN')}
+                  className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Enter Blood Bank Admin Panel
                 </button>
               </div>
             </article>

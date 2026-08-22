@@ -49,7 +49,7 @@ export async function createRequest(userId, requestData) {
   try {
     await client.query('BEGIN');
 
-    const request = await receiverRepository.createBloodRequest(profile.id, dataToInsert);
+    const request = await receiverRepository.createBloodRequest(profile.id, userId, dataToInsert);
 
     // Write audit log
     await receiverRepository.writeAuditLog(userId, 'RECEIVER_REQUEST_CREATED', 'REQUEST', request.id, {

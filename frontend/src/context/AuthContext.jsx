@@ -93,6 +93,28 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const setupAdmin = async (name, email, phone, password) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await authService.setupSuperAdmin(name, email, phone, password);
+      localStorage.setItem('token', data.token);
+      setToken(data.token);
+      setUser(data.user);
+      setRoles(data.user.roles || []);
+      setIsAuthenticated(true);
+      setCurrentWorkspace('SUPER_ADMIN');
+      localStorage.setItem('workspace', 'SUPER_ADMIN');
+      setLoading(false);
+      return data.user;
+    } catch (err) {
+      setLoading(false);
+      const errMsg = err.response?.data?.message || 'Setup failed';
+      setError(errMsg);
+      throw new Error(errMsg);
+    }
+  };
+
   const logout = async (force = false) => {
     const hasToken = localStorage.getItem('token');
     if (hasToken && !force) {
@@ -169,6 +191,43 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const sendVerificationOtp = async (method) => {
+    setError(null);
+    try {
+      const response = await authService.sendVerificationOtp(method);
+      return response;
+    } catch (err) {
+      const errMsg = err.response?.data?.message || 'Failed to send verification code';
+      setError(errMsg);
+      throw new Error(errMsg);
+    }
+  };
+
+  const verifyOtp = async (code) => {
+    setError(null);
+    try {
+      const data = await authService.verifyOtp(code);
+      localStorage.setItem('token', data.token);
+      setToken(data.token);
+      setUser(data.user);
+      setIsAuthenticated(true);
+      return data;
+    } catch (err) {
+      const errMsg = err.response?.data?.message || 'Verification failed';
+      setError(errMsg);
+      throw new Error(errMsg);
+    }
+  };
+
+  const getAuthConfig = async () => {
+    try {
+      return await authService.getAuthConfig();
+    } catch (err) {
+      console.error('Failed to get auth config:', err.message);
+      return { success: false, sms_enabled: false };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -181,10 +240,14 @@ export function AuthProvider({ children }) {
         error,
         login,
         signup,
+        setupAdmin,
         logout,
         promoteToDonor,
         promoteToReceiver,
-        switchWorkspace
+        switchWorkspace,
+        sendVerificationOtp,
+        verifyOtp,
+        getAuthConfig
       }}
     >
       {children}

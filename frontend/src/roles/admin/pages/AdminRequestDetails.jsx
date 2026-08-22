@@ -99,7 +99,7 @@ export default function AdminRequestDetails() {
   if (!data || !data.request) {
     return (
       <div className="page-stack max-w-5xl">
-        <button onClick={() => navigate('/admin/requests')} className="text-xs font-bold text-slate-500 hover:text-brand-red mb-4">
+        <button onClick={() => navigate('/super-admin/requests')} className="text-xs font-bold text-slate-500 hover:text-brand-red mb-4">
           ← Back to Requests
         </button>
         <div className="rounded-lg bg-rose-50 p-4 text-xs font-semibold text-rose-800 border border-rose-100">
@@ -174,7 +174,7 @@ export default function AdminRequestDetails() {
     <div className="page-stack max-w-5xl relative select-none">
       {/* BACK BUTTON */}
       <button
-        onClick={() => navigate('/admin/requests')}
+        onClick={() => navigate('/super-admin/requests')}
         className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-red transition cursor-pointer select-none mb-4 focus:outline-none"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -41,7 +41,7 @@ export default async function authMiddleware(req, res, next) {
     if (userRes.rows[0].status !== 'ACTIVE') {
       const rolesRes = await pool.query('SELECT role FROM user_roles WHERE user_id = $1', [decoded.id]);
       const roles = rolesRes.rows.map(r => r.role);
-      if (roles.includes('ADMIN')) {
+      if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN') || roles.includes('BLOOD_BANK_ADMIN')) {
         return res.status(401).json({
           status: 'error',
           message: 'Your administrator account has been approved but is not activated yet. Please contact an active administrator.'

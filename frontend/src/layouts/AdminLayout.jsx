@@ -6,15 +6,15 @@ import MedicalBackground from '../components/MedicalBackground';
 import { getAdminNotifications } from '../services/adminService';
 
 const adminLinks = [
-  { to: '/admin/dashboard', label: 'Dashboard', end: true, icon: 'dashboard' },
-  { to: '/admin/donors', label: 'Donors', icon: 'donors' },
-  { to: '/admin/requests', label: 'Requests', icon: 'requests' },
-  { to: '/admin/coordinators', label: 'Coordinators', icon: 'coordinators' },
-  { to: '/admin/admins', label: 'Administrators', icon: 'admins' },
-  { to: '/admin/donations', label: 'Donations', icon: 'donations' },
-  { to: '/admin/reports', label: 'Reports', icon: 'reports' },
-  { to: '/admin/notifications', label: 'Notifications', icon: 'notifications' },
-  { to: '/admin/audit-logs', label: 'Audit Logs', icon: 'audit' },
+  { to: '/super-admin/dashboard', label: 'Dashboard', end: true, icon: 'dashboard' },
+  { to: '/super-admin/donors', label: 'Donors', icon: 'donors' },
+  { to: '/super-admin/requests', label: 'Requests', icon: 'requests' },
+  { to: '/super-admin/coordinators', label: 'Coordinators', icon: 'coordinators' },
+  { to: '/super-admin/admins', label: 'Administrators', icon: 'admins' },
+  { to: '/super-admin/donations', label: 'Donations', icon: 'donations' },
+  { to: '/super-admin/reports', label: 'Reports', icon: 'reports' },
+  { to: '/super-admin/notifications', label: 'Notifications', icon: 'notifications' },
+  { to: '/super-admin/audit-logs', label: 'Audit Logs', icon: 'audit' },
 ];
 
 function getLinkIcon(iconName, isActive) {
@@ -263,7 +263,7 @@ export default function AdminLayout() {
             <img src={logo} alt="Gift of Life Logo" className="h-8.5 w-8.5 object-contain rounded-lg shrink-0" />
             <div className="leading-none">
               <span className="text-xs font-black text-brand-red uppercase tracking-wider block">Gift of Life</span>
-              <span className="text-[9px] font-bold text-slate-400 mt-0.5 block">Admin Workspace</span>
+              <span className="text-[9px] font-bold text-slate-400 mt-0.5 block">Super Admin Workspace</span>
             </div>
           </div>
           {navLinksContent()}
@@ -281,7 +281,7 @@ export default function AdminLayout() {
           </div>
 
           <NavLink
-            to="/admin/profile"
+            to="/super-admin/profile"
             className={({ isActive }) =>
               `flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xxs font-bold transition ${
                 isActive ? 'text-brand-red bg-rose-50' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
@@ -323,7 +323,7 @@ export default function AdminLayout() {
 
           <div className="flex items-center gap-2">
             <img src={logo} alt="Logo" className="h-8 w-8 object-contain rounded" />
-            <span className="text-xs font-black text-brand-red uppercase tracking-wider">Gift of Life Admin</span>
+            <span className="text-xs font-black text-brand-red uppercase tracking-wider">Gift of Life Super Admin</span>
           </div>
 
           <div className="w-10 h-10" />
@@ -343,7 +343,7 @@ export default function AdminLayout() {
                     <img src={logo} alt="Logo" className="h-8 w-8 object-contain rounded" />
                     <div className="leading-none">
                       <span className="text-xs font-black text-brand-red uppercase block">Gift of Life</span>
-                      <span className="text-[9px] font-bold text-slate-400 mt-0.5 block">Admin Drawer</span>
+                      <span className="text-[9px] font-bold text-slate-400 mt-0.5 block">Super Admin Drawer</span>
                     </div>
                   </div>
                   <button
@@ -371,7 +371,7 @@ export default function AdminLayout() {
                 </div>
 
                 <NavLink
-                  to="/admin/profile"
+                  to="/super-admin/profile"
                   onClick={() => setIsDrawerOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xxs font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition uppercase tracking-wider"
                 >
@@ -421,7 +421,7 @@ export default function AdminLayout() {
             </h3>
             
             <p className="text-slate-500 leading-relaxed font-sans text-xxs select-none">
-              You are about to sign out of the Admin Workspace. This will end your current session.
+              You are about to sign out of the Super Admin Workspace. This will end your current session.
             </p>
             
             {logoutError && (

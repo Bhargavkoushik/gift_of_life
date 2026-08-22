@@ -59,7 +59,7 @@ export default function AdminDonorDetails() {
     return (
       <div className="page-stack max-w-4xl">
         <div className="flex items-center gap-2 text-xxs font-bold text-slate-405 uppercase tracking-wider mb-2">
-          <Link to="/admin/donors" className="hover:text-brand-red">← Back to Donors</Link>
+          <Link to="/super-admin/donors" className="hover:text-brand-red">← Back to Donors</Link>
         </div>
         <PageHeader title="Donor Details" />
         <div className="rounded-lg bg-rose-50 p-4 text-xs font-semibold text-rose-800 border border-rose-100 max-w-3xl">
@@ -74,7 +74,7 @@ export default function AdminDonorDetails() {
   return (
     <div className="page-stack max-w-4xl relative select-none">
       <div className="flex items-center gap-2 text-xxs font-bold text-slate-450 uppercase tracking-wider mb-2">
-        <Link to="/admin/donors" className="hover:text-brand-red">← Back to Donors</Link>
+        <Link to="/super-admin/donors" className="hover:text-brand-red">← Back to Donors</Link>
       </div>
 
       <PageHeader
