@@ -6,6 +6,7 @@ import donorRoutes from './modules/donors/routes.js';
 import coordinatorRoutes from './modules/coordinators/routes.js';
 import adminRoutes from './modules/admin/routes.js';
 import receiverRoutes from './modules/receivers/routes.js';
+import bloodBankAdminRoutes from './modules/blood_bank_admin/routes.js';
 import authMiddleware from './middleware/auth.js';
 import requireRole from './middleware/role.js';
 import { queryBloodCamps, queryBloodInventory, getBloodGroups } from './modules/coordinators/repository.js';
@@ -18,8 +19,9 @@ app.use(cors());
 app.use('/api/auth', authRoutes);
 app.use('/api/donor', authMiddleware, requireRole('DONOR'), donorRoutes);
 app.use('/api/coordinator', authMiddleware, requireRole('COORDINATOR'), coordinatorRoutes);
-app.use('/api/admin', authMiddleware, requireRole('ADMIN'), adminRoutes);
+app.use('/api/super-admin', authMiddleware, requireRole(['SUPER_ADMIN', 'ADMIN']), adminRoutes);
 app.use('/api/receiver', authMiddleware, requireRole('RECEIVER'), receiverRoutes);
+app.use('/api/blood-bank-admin', authMiddleware, requireRole('BLOOD_BANK_ADMIN'), bloodBankAdminRoutes);
 
 app.get('/api/blood-camps', async (req, res, next) => {
   try {

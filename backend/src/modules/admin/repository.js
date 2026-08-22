@@ -5,7 +5,7 @@ export async function getActiveStaff() {
     SELECT u.id, u.name, u.email 
     FROM users u
     JOIN user_roles ur ON u.id = ur.user_id
-    WHERE ur.role = 'ADMIN' AND u.status = 'ACTIVE'
+    WHERE (ur.role = 'SUPER_ADMIN' OR ur.role = 'ADMIN') AND u.status = 'ACTIVE'
     ORDER BY u.name ASC
   `);
   
@@ -35,12 +35,12 @@ export async function getSystemStats() {
     activeAdmins: `
       SELECT COUNT(*) FROM user_roles ur 
       JOIN users u ON ur.user_id = u.id 
-      WHERE ur.role = 'ADMIN' AND u.status = 'ACTIVE'
+      WHERE ur.role IN ('SUPER_ADMIN', 'ADMIN') AND u.status = 'ACTIVE'
     `,
     inactiveAdmins: `
       SELECT COUNT(*) FROM user_roles ur 
       JOIN users u ON ur.user_id = u.id 
-      WHERE ur.role = 'ADMIN' AND u.status = 'INACTIVE'
+      WHERE ur.role IN ('SUPER_ADMIN', 'ADMIN') AND u.status = 'INACTIVE'
     `,
     pendingVerifications: `
       SELECT COUNT(*) FROM internal_invitations 
@@ -128,11 +128,11 @@ export async function getStaffList() {
                AND (ra.status = 'COMPLETED' OR br.status = 'FULFILLED')
            ) as completed_cases_count
     FROM users u
-    JOIN user_roles ur ON u.id = ur.user_id
-    LEFT JOIN coordinator_profiles cp ON u.id = cp.user_id AND cp.status = 'ACTIVE'
-    WHERE ur.role IN ('ADMIN', 'COORDINATOR')
-    GROUP BY u.id, cp.id, cp.area, cp.district, cp.state, cp.availability_status, cp.last_active_at
-    ORDER BY u.created_at DESC
+     JOIN user_roles ur ON u.id = ur.user_id
+     LEFT JOIN coordinator_profiles cp ON u.id = cp.user_id AND cp.status = 'ACTIVE'
+     WHERE ur.role IN ('SUPER_ADMIN', 'ADMIN', 'COORDINATOR', 'BLOOD_BANK_ADMIN')
+     GROUP BY u.id, cp.id, cp.area, cp.district, cp.state, cp.availability_status, cp.last_active_at
+     ORDER BY u.created_at DESC
   `);
   return staffRes.rows;
 }
@@ -287,7 +287,7 @@ export async function countActiveAdmins() {
   const res = await pool.query(`
     SELECT COUNT(*) FROM user_roles ur
     JOIN users u ON ur.user_id = u.id
-    WHERE ur.role = 'ADMIN' AND u.status = 'ACTIVE'
+    WHERE ur.role IN ('SUPER_ADMIN', 'ADMIN') AND u.status = 'ACTIVE'
   `);
   return parseInt(res.rows[0].count, 10);
 }
@@ -752,7 +752,7 @@ export async function getRequestsList({ search, bloodGroup, urgency, status, loc
            (br.status = 'DONOR_RESPONDED' AND (ra.id IS NULL OR ra.assigned_at < CURRENT_TIMESTAMP - INTERVAL '2 hours')) as requires_attention
     FROM blood_requests br
     JOIN blood_groups bg ON br.blood_group_id = bg.id
-    JOIN receiver_profiles rp ON br.receiver_id = rp.id
+    LEFT JOIN receiver_profiles rp ON br.receiver_id = rp.id
     LEFT JOIN request_assignments ra ON br.id = ra.request_id AND ra.status = 'ASSIGNED'
   `;
   const params = [];
@@ -820,7 +820,7 @@ export async function getRequestDetailsById(requestId) {
             (br.status = 'DONOR_RESPONDED' AND (ra.id IS NULL OR ra.assigned_at < CURRENT_TIMESTAMP - INTERVAL '2 hours')) as requires_attention
      FROM blood_requests br
      JOIN blood_groups bg ON br.blood_group_id = bg.id
-     JOIN receiver_profiles rp ON br.receiver_id = rp.id
+     LEFT JOIN receiver_profiles rp ON br.receiver_id = rp.id
      LEFT JOIN request_assignments ra ON br.id = ra.request_id AND ra.status = 'ASSIGNED'
      WHERE br.id = $1`,
     [requestId]
@@ -1379,7 +1379,7 @@ export async function getActiveAdmins() {
   const res = await pool.query(`
     SELECT u.id FROM users u
     JOIN user_roles ur ON u.id = ur.user_id
-    WHERE ur.role = 'ADMIN' AND u.status = 'ACTIVE'
+    WHERE ur.role IN ('SUPER_ADMIN', 'ADMIN') AND u.status = 'ACTIVE'
   `);
   return res.rows;
 }

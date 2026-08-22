@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import * as donorRepository from './repository.js';
 
 export async function getDonorProfile(userId) {
@@ -41,7 +42,23 @@ export async function updateDonorAvailability(userId, availabilityStatus) {
 }
 
 export async function getMatchingRequests(userId) {
-  return await donorRepository.getMatchingRequests(userId);
+  const profile = await donorRepository.getDonorProfileByUserId(userId);
+  if (!profile) {
+    return [];
+  }
+  const requests = await donorRepository.getMatchingRequests(userId);
+  return requests.map(req => {
+    const token = jwt.sign(
+      { donor_profile_id: profile.id, request_id: req.id },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '1d' }
+    );
+    return {
+      ...req,
+      donor_profile_id: profile.id,
+      donor_token: token
+    };
+  });
 }
 
 export async function respondToRequest(userId, requestId, status, notes) {

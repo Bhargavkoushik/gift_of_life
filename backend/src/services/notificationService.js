@@ -246,3 +246,83 @@ export async function sendCoordinatorEmailReminder(coordUser, requestDetails) {
     }
   }
 }
+
+export async function sendVerificationCodeEmail(user, code) {
+  const provider = process.env.MAIL_PROVIDER || 'console';
+
+  if (provider === 'console') {
+    console.log('==================================================');
+    console.log(`[VERIFICATION EMAIL SIMULATION]`);
+    console.log(`To: ${user.name} <${user.email}>`);
+    console.log(`Verification OTP Code: ${code}`);
+    console.log('==================================================');
+    return { success: true, provider: 'console' };
+  }
+
+  if (provider === 'smtp') {
+    const port = parseInt(process.env.MAIL_PORT || '587', 10);
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: port,
+      secure: port === 465,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.MAIL_FROM || 'no-reply@giftoflife.org',
+      to: user.email,
+      subject: 'Gift of Life – Verify Your Account',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+          <h2 style="color: #C62828; margin-top: 0; margin-bottom: 5px;">Gift of Life</h2>
+          <p style="color: #64748b; font-size: 14px; margin-top: 0; margin-bottom: 20px;">Blood Donation Platform</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <p style="font-size: 16px; color: #0f172a; line-height: 1.5; margin-bottom: 20px;">
+            Here is your one-time verification code to verify your account:
+          </p>
+          <div style="margin: 30px 0; text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #C62828; background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1; display: inline-block;">
+              ${code}
+            </div>
+          </div>
+          <p style="font-size: 12px; color: #64748b; margin-top: 30px;">
+            This code will expire in 10 minutes.
+          </p>
+          <p style="font-size: 12px; color: #64748b; margin-top: 10px;">
+            If you did not request this verification code, you can safely ignore this email.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      return { success: true, provider: 'smtp' };
+    } catch (err) {
+      console.error('SMTP verification code dispatch failure:', err.message);
+      throw new Error(`Email delivery failed: ${err.message}`);
+    }
+  }
+
+  console.log(`[EMAIL] Attempting delivery to ${user.email} via provider: ${provider}`);
+  throw new Error(`Mail provider '${provider}' is not yet connected.`);
+}
+
+export async function sendVerificationCodeSMS(user, code) {
+  const provider = process.env.SMS_PROVIDER || 'console';
+
+  if (provider === 'console') {
+    console.log('==================================================');
+    console.log(`[VERIFICATION SMS SIMULATION]`);
+    console.log(`To: ${user.phone}`);
+    console.log(`Verification OTP Code: ${code}`);
+    console.log('==================================================');
+    return { success: true, provider: 'console' };
+  }
+
+  console.log(`[SMS] Attempting delivery to ${user.phone} via provider: ${provider}`);
+  throw new Error(`SMS provider '${provider}' is not yet connected.`);
+}

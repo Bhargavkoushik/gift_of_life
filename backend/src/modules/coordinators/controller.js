@@ -338,3 +338,101 @@ export async function getBloodGroups(req, res, next) {
     next(error);
   }
 }
+
+const releaseDonorSchema = z.object({
+  donor_id: z.string().uuid('Invalid donor ID provided'),
+  reason: z.string().optional().nullable()
+});
+
+export async function releaseDonor(req, res, next) {
+  try {
+    const { id: requestId } = req.params;
+    const validatedData = releaseDonorSchema.parse(req.body);
+    const result = await coordinatorService.releaseDonor(
+      requestId,
+      validatedData.donor_id,
+      validatedData.reason || '',
+      req.user.id
+    );
+    return res.status(200).json({
+      success: true,
+      message: 'Donor successfully marked as unable to continue',
+      result
+    });
+  } catch (error) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_FAILED',
+        message: 'Invalid release parameters.',
+        errors: error.errors
+      });
+    }
+    next(error);
+  }
+}
+
+const donorResponsesQuerySchema = z.object({
+  page: z.preprocess((val) => {
+    if (typeof val === 'string') return parseInt(val, 10);
+    return val;
+  }, z.number().int().min(1).default(1)),
+  limit: z.preprocess((val) => {
+    if (typeof val === 'string') return parseInt(val, 10);
+    return val;
+  }, z.number().int().min(1).max(100).default(20)),
+  filter: z.enum(['ACTIVE', 'HISTORY']).default('ACTIVE'),
+  search: z.string().optional().default('')
+});
+
+export async function getDonorResponses(req, res, next) {
+  try {
+    const query = donorResponsesQuerySchema.parse(req.query);
+    const result = await coordinatorService.getDonorResponses(req.user.id, query);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_FAILED',
+        message: 'Invalid donor response query parameters.',
+        errors: error.errors
+      });
+    }
+    next(error);
+  }
+}
+
+const followUpsQuerySchema = z.object({
+  page: z.preprocess((val) => {
+    if (typeof val === 'string') return parseInt(val, 10);
+    return val;
+  }, z.number().int().min(1).default(1)),
+  limit: z.preprocess((val) => {
+    if (typeof val === 'string') return parseInt(val, 10);
+    return val;
+  }, z.number().int().min(1).max(100).default(20)),
+  filter: z.enum(['ALL', 'OVERDUE', 'PENDING_ACTION']).default('ALL'),
+  search: z.string().optional().default('')
+});
+
+export async function getFollowUps(req, res, next) {
+  try {
+    const query = followUpsQuerySchema.parse(req.query);
+    const result = await coordinatorService.getFollowUps(req.user.id, query);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_FAILED',
+        message: 'Invalid follow-ups query parameters.',
+        errors: error.errors
+      });
+    }
+    next(error);
+  }
+}
+
+
+

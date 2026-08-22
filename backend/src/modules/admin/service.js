@@ -285,7 +285,7 @@ export async function updateStaffStatus(actorId, targetUserId, { status }) {
   const targetRolesRes = await pool.query('SELECT role FROM user_roles WHERE user_id = $1', [targetUserId]);
   const targetRoles = targetRolesRes.rows.map(r => r.role);
   const isCoordinator = targetRoles.includes('COORDINATOR');
-  const isTargetAdmin = targetRoles.includes('ADMIN');
+  const isTargetAdmin = targetRoles.includes('SUPER_ADMIN') || targetRoles.includes('ADMIN') || targetRoles.includes('BLOOD_BANK_ADMIN');
 
   if (status === 'ACTIVE') {
     if (currentAccountStatus !== 'INACTIVE') {
@@ -318,6 +318,12 @@ export async function updateStaffStatus(actorId, targetUserId, { status }) {
   if (status === 'INACTIVE') {
     if (currentAccountStatus !== 'ACTIVE') {
       const err = new Error('Cannot deactivate account. Account is not currently active.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (targetRoles.includes('SUPER_ADMIN')) {
+      const err = new Error('Cannot deactivate the permanent Trust Super Admin account.');
       err.statusCode = 400;
       throw err;
     }

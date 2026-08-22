@@ -70,12 +70,14 @@ export default function Login() {
         const isReceiverRoute = fromPathname.startsWith('/receiver');
         const isCoordinatorRoute = fromPathname.startsWith('/coordinator');
         const isAdminRoute = fromPathname.startsWith('/admin');
+        const isBloodBankAdminRoute = fromPathname.startsWith('/blood-bank-admin');
 
         if (
           (isDonorRoute && userRoles.includes('DONOR')) ||
           (isReceiverRoute && userRoles.includes('RECEIVER')) ||
           (isCoordinatorRoute && userRoles.includes('COORDINATOR')) ||
-          (isAdminRoute && userRoles.includes('ADMIN'))
+          (isAdminRoute && userRoles.includes('ADMIN')) ||
+          (isBloodBankAdminRoute && userRoles.includes('BLOOD_BANK_ADMIN'))
         ) {
           navigate(fromPathname + fromSearch, { replace: true });
           return;
@@ -84,13 +86,18 @@ export default function Login() {
 
       // Default redirect logic based on roles
       if (userRoles.length > 1) {
-        navigate('/select-role', { replace: true });
+        if (userRoles.includes('SUPER_ADMIN') || userRoles.includes('ADMIN')) {
+          navigate('/super-admin/dashboard', { replace: true });
+        } else {
+          navigate('/select-role', { replace: true });
+        }
       } else if (userRoles.length === 1) {
         const role = userRoles[0];
         if (role === 'DONOR') navigate('/donor/dashboard', { replace: true });
         else if (role === 'RECEIVER') navigate('/receiver/dashboard', { replace: true });
         else if (role === 'COORDINATOR') navigate('/coordinator/dashboard', { replace: true });
-        else if (role === 'ADMIN') navigate('/admin/dashboard', { replace: true });
+        else if (role === 'ADMIN' || role === 'SUPER_ADMIN') navigate('/super-admin/dashboard', { replace: true });
+        else if (role === 'BLOOD_BANK_ADMIN') navigate('/blood-bank-admin/dashboard', { replace: true });
       } else {
         // No profile activated yet
         navigate('/select-role', { replace: true });

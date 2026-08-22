@@ -14,7 +14,9 @@ import Home from '../pages/public/Home';
 import HowDonationWorks from '../pages/public/HowDonationWorks';
 import Login from '../pages/public/Login';
 import Signup from '../pages/public/Signup';
+import SetupSuperAdmin from '../pages/public/SetupSuperAdmin';
 import SelectRole from '../pages/public/SelectRole';
+import VerifyAccount from '../pages/public/VerifyAccount';
 import ForgotPassword from '../pages/public/ForgotPassword';
 import ResetPassword from '../pages/public/ResetPassword';
 import ChangePassword from '../pages/public/ChangePassword';
@@ -53,6 +55,12 @@ import AdminRequestDetails from '../roles/admin/pages/AdminRequestDetails';
 import RequestManagement from '../roles/admin/pages/RequestManagement';
 import Reports from '../roles/admin/pages/Reports';
 
+import BloodBankAdminLayout from '../layouts/BloodBankAdminLayout';
+import BloodBankAdminDashboard from '../roles/blood_bank_admin/pages/BloodBankAdminDashboard';
+import BloodBankAdminRequestManagement from '../roles/blood_bank_admin/pages/RequestManagement';
+import BloodBankAdminCreateRequest from '../roles/blood_bank_admin/pages/CreateRequest';
+import BloodBankAdminRequestDetails from '../roles/blood_bank_admin/pages/RequestDetails';
+
 function AppRoutes() {
   return (
     <AuthProvider>
@@ -67,10 +75,20 @@ function AppRoutes() {
             <Route path="how-donation-works" element={<HowDonationWorks />} />
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
+            <Route path="setup-super-admin" element={<SetupSuperAdmin />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="accept-invite" element={<AcceptInvitation />} />
           </Route>
+
+          <Route
+            path="verify-account"
+            element={
+              <ProtectedRoute>
+                <VerifyAccount />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="select-role"
@@ -100,7 +118,6 @@ function AppRoutes() {
           >
             <Route path="dashboard" element={<DonorDashboard />} />
             <Route path="profile" element={<DonorProfile />} />
-            <Route path="availability" element={<DonorAvailability />} />
             <Route path="requests" element={<DonorRequests />} />
             <Route path="donation-history" element={<DonorDonationHistory />} />
             <Route path="notifications" element={<DonorNotifications />} />
@@ -144,13 +161,30 @@ function AppRoutes() {
           </Route>
 
           <Route
-            path="admin"
+            path="blood-bank-admin"
             element={
-              <ProtectedRoute requiredRole="ADMIN">
+              <ProtectedRoute requiredRole="BLOOD_BANK_ADMIN">
+                <BloodBankAdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<BloodBankAdminDashboard />} />
+            <Route path="requests" element={<BloodBankAdminRequestManagement />} />
+            <Route path="requests/create" element={<BloodBankAdminCreateRequest />} />
+            <Route path="requests/:id" element={<BloodBankAdminRequestDetails />} />
+            <Route path="profile" element={<ProfileAccount />} />
+          </Route>
+
+          <Route
+            path="super-admin"
+            element={
+              <ProtectedRoute requiredRole="SUPER_ADMIN">
                 <AdminLayout />
               </ProtectedRoute>
             }
           >
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="donors" element={<DonorManagement />} />
             <Route path="donors/:id" element={<AdminDonorDetails />} />
@@ -164,6 +198,10 @@ function AppRoutes() {
             <Route path="audit-logs" element={<AuditLog />} />
             <Route path="profile" element={<ProfileAccount />} />
           </Route>
+
+          {/* Backwards compatibility redirect */}
+          <Route path="admin" element={<Navigate to="/super-admin/dashboard" replace />} />
+          <Route path="admin/*" element={<Navigate to="/super-admin/dashboard" replace />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

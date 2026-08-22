@@ -391,7 +391,7 @@ export default function RequestManagement() {
                 {requests.map((req) => (
                   <tr
                     key={req.id}
-                    onClick={() => navigate(`/admin/requests/${req.id}`)}
+                    onClick={() => navigate(`/super-admin/requests/${req.id}`)}
                     className="hover:bg-slate-25 cursor-pointer transition"
                   >
                     <td className="px-5 py-3.5 text-xs font-mono font-bold text-slate-500">
@@ -429,7 +429,7 @@ export default function RequestManagement() {
                     </td>
                     <td className="px-5 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => navigate(`/admin/requests/${req.id}`)}
+                        onClick={() => navigate(`/super-admin/requests/${req.id}`)}
                         className="rounded-md border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1.5 text-[10px] font-extrabold text-slate-700 transition"
                       >
                         View
@@ -446,7 +446,7 @@ export default function RequestManagement() {
             {requests.map((req) => (
               <div
                 key={req.id}
-                onClick={() => navigate(`/admin/requests/${req.id}`)}
+                onClick={() => navigate(`/super-admin/requests/${req.id}`)}
                 className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 hover:border-slate-350 transition active:bg-slate-50"
               >
                 <div className="flex justify-between items-start">
@@ -488,7 +488,7 @@ export default function RequestManagement() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/admin/requests/${req.id}`);
+                      navigate(`/super-admin/requests/${req.id}`);
                     }}
                     className="rounded-md border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-[10px] font-extrabold text-slate-700 transition"
                   >

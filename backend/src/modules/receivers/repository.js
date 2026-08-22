@@ -2,8 +2,10 @@ import pool from '../../database/connection.js';
 
 export async function getReceiverProfileByUserId(userId) {
   const res = await pool.query(
-    `SELECT id, name, phone, address, area, district, state, pincode, receiver_type, verification_status 
-     FROM receiver_profiles WHERE user_id = $1`,
+    `SELECT rp.id, rp.name, rp.phone, rp.secondary_phone, rp.address, rp.area, rp.district, rp.state, rp.pincode, rp.receiver_type, rp.verification_status, u.email 
+     FROM receiver_profiles rp
+     JOIN users u ON rp.user_id = u.id
+     WHERE rp.user_id = $1`,
     [userId]
   );
   return res.rows[0];
@@ -12,10 +14,10 @@ export async function getReceiverProfileByUserId(userId) {
 export async function updateReceiverProfile(userId, data) {
   const res = await pool.query(
     `UPDATE receiver_profiles 
-     SET name = $1, phone = $2, address = $3, area = $4, district = $5, state = $6, pincode = $7, receiver_type = $8, updated_at = CURRENT_TIMESTAMP
-     WHERE user_id = $9
+     SET address = $1, area = $2, district = $3, state = $4, pincode = $5, receiver_type = $6, secondary_phone = $7, updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = $8
      RETURNING *`,
-    [data.name, data.phone, data.address, data.area, data.district, data.state, data.pincode, data.receiver_type, userId]
+    [data.address, data.area, data.district, data.state, data.pincode, data.receiver_type, data.secondary_phone || null, userId]
   );
   return res.rows[0];
 }
@@ -28,10 +30,10 @@ export async function getBloodGroupIdByCode(code) {
   return res.rows[0]?.id;
 }
 
-export async function createBloodRequest(receiverId, data) {
+export async function createBloodRequest(receiverId, userId, data) {
   const res = await pool.query(
-    `INSERT INTO blood_requests (receiver_id, blood_group_id, required_units, patient_name, hospital_name, hospital_address, location, required_date_time, urgency_level, status, description)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', $10)
+    `INSERT INTO blood_requests (receiver_id, blood_group_id, required_units, patient_name, hospital_name, hospital_address, location, required_date_time, urgency_level, status, description, relation_type, created_by_user_id, created_by_role)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', $10, $11, $12, 'RECEIVER')
      RETURNING *`,
     [
       receiverId,
@@ -43,7 +45,9 @@ export async function createBloodRequest(receiverId, data) {
       data.location,
       data.required_date_time,
       data.urgency_level,
-      data.description || null
+      data.description || null,
+      data.relation_type || 'SOMEONE_ELSE',
+      userId
     ]
   );
   return res.rows[0];

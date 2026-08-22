@@ -1,4 +1,5 @@
 export default function requireRole(requiredRole) {
+  const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -8,10 +9,11 @@ export default function requireRole(requiredRole) {
     }
 
     const roles = req.user.roles || [];
-    if (!roles.includes(requiredRole)) {
+    const hasRole = allowedRoles.some(r => roles.includes(r));
+    if (!hasRole) {
       return res.status(403).json({
         status: 'error',
-        message: `Insufficient permissions. Role '${requiredRole}' is required.`
+        message: `Insufficient permissions. One of the following roles is required: ${allowedRoles.join(', ')}`
       });
     }
 

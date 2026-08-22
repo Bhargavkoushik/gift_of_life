@@ -26,15 +26,15 @@ export default function ReceiverDashboard() {
 
   const getFriendlyStatus = (status) => {
     const mapping = {
-      'PENDING': 'Coordinator Reviewing',
-      'APPROVED': 'Coordinator Reviewing',
+      'PENDING': 'Reviewing',
+      'APPROVED': 'Reviewing',
       'DONORS_ALERTED': 'Searching Donors',
       'DONOR_RESPONDED': 'Donor Response Received',
-      'COORDINATOR_ASSIGNED': 'Coordinator is coordinating',
+      'COORDINATOR_ASSIGNED': 'Coordinating',
       'DONOR_CONFIRMED': 'Visit Confirmed',
-      'FULFILLED': 'Request Fulfilled',
-      'CANCELLED': 'Request Cancelled',
-      'REJECTED': 'Request Denied',
+      'FULFILLED': 'Donation Completed',
+      'CANCELLED': 'Cancelled',
+      'REJECTED': 'Denied',
       'NO_DONOR_FOUND': 'No Donor Found'
     };
     return mapping[status] || status;
@@ -70,7 +70,7 @@ export default function ReceiverDashboard() {
   if (error) {
     return (
       <div className="page-stack max-w-4xl">
-        <PageHeader title="Receiver Dashboard" />
+        <PageHeader title="Dashboard" />
         <div className="rounded-lg bg-rose-50 p-4 text-xs font-semibold text-rose-800 border border-rose-100">
           ⚠️ {error}
         </div>
@@ -83,32 +83,32 @@ export default function ReceiverDashboard() {
   return (
     <div className="page-stack max-w-5xl">
       <PageHeader
-        title="Receiver Dashboard"
-        description="Monitor status updates, verify donor feedback coordinates, and track active request cycles."
+        title="Dashboard"
+        description="Monitor status updates, verify donor matches, and track active request cycles."
       />
 
       {/* METRICS ROW */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450">Active Requests</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Requests</span>
           <div className="text-2xl font-extrabold text-slate-800">{metrics.activeRequests}</div>
           <span className="text-xxs text-slate-400 font-medium">Currently in system review</span>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450">Being Coordinated</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Being Coordinated</span>
           <div className="text-2xl font-extrabold text-blue-600">{metrics.coordinatingRequests}</div>
           <span className="text-xxs text-slate-400 font-medium">Assigned staff coordination</span>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450">Donor Responses</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Donor Responses</span>
           <div className="text-2xl font-extrabold text-amber-600">{metrics.donorResponses}</div>
           <span className="text-xxs text-slate-400 font-medium">Matches ready to help</span>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450">Fulfilled Requests</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fulfilled Requests</span>
           <div className="text-2xl font-extrabold text-emerald-600">{metrics.fulfilledRequests}</div>
           <span className="text-xxs text-slate-400 font-medium">Donations successfully recorded</span>
         </div>
@@ -148,10 +148,6 @@ export default function ReceiverDashboard() {
                     <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">Location</span>
                     <span className="text-slate-800">{primaryRequest.location}</span>
                   </div>
-                  <div className="col-span-2">
-                    <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">Physical Destination</span>
-                    <span className="text-slate-800">ASN Raju Blood Centre, Bhimavaram</span>
-                  </div>
                   {primaryRequest.coordinator_name && (
                     <div className="col-span-2 pt-1 border-t border-slate-150">
                       <span className="text-slate-400 block uppercase font-bold text-[9px] mb-0.5">Coordinator Assigned</span>
@@ -162,10 +158,11 @@ export default function ReceiverDashboard() {
 
                 <div className="flex items-center justify-between gap-4 pt-2">
                   <p className="text-[10px] text-slate-400 font-medium">
-                    This request is actively being reviewed. Donation visit scheduling must occur at the Bhimavaram center.
+                    This request is actively being reviewed. Status will be updated once coordination starts.
                   </p>
                   <Link
                     to={`/receiver/requests/${primaryRequest.id}`}
+                    state={{ from: 'dashboard' }}
                     className="rounded-lg bg-brand-red px-4 py-2 text-xxs font-bold text-white hover:bg-brand-red-dark transition cursor-pointer shrink-0"
                   >
                     View Request Details →
@@ -179,7 +176,7 @@ export default function ReceiverDashboard() {
                   to="/receiver/request-blood"
                   className="inline-flex rounded-lg bg-brand-red px-4 py-2 text-xxs font-bold text-white hover:bg-brand-red-dark transition cursor-pointer"
                 >
-                  Create Blood Request
+                  Request Blood
                 </Link>
               </div>
             )}
@@ -188,7 +185,7 @@ export default function ReceiverDashboard() {
           {/* RECENT REQUESTS LIST */}
           {recentRequests.length > 0 && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 font-sans">Recent Requests History</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 font-sans">Recent Blood Requests</h3>
               <div className="divide-y divide-slate-150">
                 {recentRequests.map(req => (
                   <div key={req.id} className="py-3.5 flex items-center justify-between first:pt-0 last:pb-0">
@@ -209,6 +206,7 @@ export default function ReceiverDashboard() {
                       </span>
                       <Link
                         to={`/receiver/requests/${req.id}`}
+                        state={{ from: 'dashboard' }}
                         className="text-xxs font-bold text-brand-red hover:underline"
                       >
                         View
@@ -219,30 +217,6 @@ export default function ReceiverDashboard() {
               </div>
             </div>
           )}
-        </div>
-
-        {/* RIGHT COLUMN: INFORMATION & WORKFLOW REMINDERS */}
-        <div className="md:col-span-1 space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 font-sans border-b border-slate-100 pb-2">
-              Bhimavaram Center Guide
-            </h3>
-            <div className="text-xxs text-slate-500 leading-relaxed space-y-3 font-semibold">
-              <p>
-                <strong>Gift of Life</strong> coordinates matching with local donors registered in Bhimavaram.
-              </p>
-              <div className="p-3 bg-rose-50/50 border border-rose-100 rounded-xl space-y-1 text-slate-655">
-                <span className="text-[10px] font-bold text-rose-800 uppercase block">Physical Center</span>
-                <strong>ASN Raju Blood Centre</strong>
-                <p className="mt-0.5 text-xxs font-medium text-slate-500 leading-normal">
-                  ASN Raju Charitable Trust Buildings, near Local Market, Bhimavaram, Andhra Pradesh.
-                </p>
-              </div>
-              <p>
-                *Note: Accepting an online match does not confirm donation eligibility. Donors undergo standard medical screening at the center before extraction.*
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

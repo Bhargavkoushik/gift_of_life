@@ -24,15 +24,15 @@ export default function MyRequests() {
 
   const getFriendlyStatus = (status) => {
     const mapping = {
-      'PENDING': 'Coordinator Reviewing',
-      'APPROVED': 'Coordinator Reviewing',
+      'PENDING': 'Reviewing',
+      'APPROVED': 'Reviewing',
       'DONORS_ALERTED': 'Searching Donors',
       'DONOR_RESPONDED': 'Donor Response Received',
-      'COORDINATOR_ASSIGNED': 'Coordinator is coordinating',
+      'COORDINATOR_ASSIGNED': 'Coordinating',
       'DONOR_CONFIRMED': 'Visit Confirmed',
-      'FULFILLED': 'Request Fulfilled',
-      'CANCELLED': 'Request Cancelled',
-      'REJECTED': 'Request Denied',
+      'FULFILLED': 'Donation Completed',
+      'CANCELLED': 'Cancelled',
+      'REJECTED': 'Denied',
       'NO_DONOR_FOUND': 'No Donor Found'
     };
     return mapping[status] || status;
@@ -79,8 +79,8 @@ export default function MyRequests() {
   return (
     <div className="page-stack max-w-4xl">
       <PageHeader
-        title="My Requests"
-        description="A list of your current active requests and their operational verification progress."
+        title="Ongoing Requests"
+        description="Track your active blood requests and their current progress."
       />
 
       {errorMsg && (
@@ -127,15 +127,11 @@ export default function MyRequests() {
                 <div className="mt-4 grid grid-cols-2 gap-2 text-xxs leading-normal font-semibold text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <div>
                     <span className="text-slate-400 block uppercase font-bold text-[8px] mb-0.5">Required Before</span>
-                    <span className="text-slate-800">{new Date(req.required_date_time).toLocaleDateString()}</span>
+                    <span className="text-slate-885">{new Date(req.required_date_time).toLocaleDateString()}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block uppercase font-bold text-[8px] mb-0.5">Location</span>
-                    <span className="text-slate-800">{req.location}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-slate-400 block uppercase font-bold text-[8px] mb-0.5">Destination Centre</span>
-                    <span className="text-slate-800">ASN Raju Blood Centre, Bhimavaram</span>
+                    <span className="text-slate-885">{req.location}</span>
                   </div>
                 </div>
               </div>
@@ -144,6 +140,7 @@ export default function MyRequests() {
                 <span className="text-[10px] text-slate-400 font-medium">Created: {new Date(req.created_at).toLocaleDateString()}</span>
                 <Link
                   to={`/receiver/requests/${req.id}`}
+                  state={{ from: 'ongoing' }}
                   className="rounded-lg bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 text-xxs font-bold text-slate-700 transition cursor-pointer"
                 >
                   View Details →

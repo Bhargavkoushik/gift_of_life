@@ -78,6 +78,12 @@ export async function getMatchingRequests(userId) {
      LEFT JOIN donor_responses dr ON dr.request_id = br.id AND dr.donor_id = dp.id
      WHERE br.blood_group_id = dp.blood_group_id
        AND br.status NOT IN ('FULFILLED', 'CANCELLED', 'REJECTED', 'NO_DONOR_FOUND')
+       AND NOT EXISTS (
+         SELECT 1 FROM donor_responses dr2
+         WHERE dr2.request_id = br.id
+           AND dr2.response_status = 'ACCEPTED'
+           AND dr2.donor_id <> dp.id
+       )
      ORDER BY br.created_at DESC`,
     [userId]
   );
@@ -192,6 +198,12 @@ export async function respondToRequest(userId, requestId, status, notes) {
     return { success: true };
   } catch (error) {
     await client.query('ROLLBACK');
+    if (error.code === '23505') {
+      const conflictErr = new Error('This request has already been accepted by another donor.');
+      conflictErr.statusCode = 409;
+      conflictErr.code = 'DUPLICATE_DONOR_CLAIM';
+      throw conflictErr;
+    }
     throw error;
   } finally {
     client.release();
@@ -267,6 +279,33 @@ export async function completeDonation(userId, requestId, verifiedByUserId = nul
        WHERE request_id = $1 AND status IN ('ASSIGNED', 'IN_PROGRESS')`,
       [requestId]
     );
+
+    // 5. Fetch request creator / receiver details for notification
+    const requestDetailsRes = await client.query(
+      `SELECT br.created_by_user_id, br.created_by_role, rp.user_id as receiver_user_id
+       FROM blood_requests br
+       LEFT JOIN receiver_profiles rp ON br.receiver_id = rp.id
+       WHERE br.id = $1`,
+      [requestId]
+    );
+
+    if (requestDetailsRes.rows.length > 0) {
+      const { created_by_user_id, created_by_role, receiver_user_id } = requestDetailsRes.rows[0];
+      let userToNotify = null;
+      if (created_by_role === 'RECEIVER') {
+        userToNotify = created_by_user_id;
+      } else if (receiver_user_id) {
+        userToNotify = receiver_user_id;
+      }
+
+      if (userToNotify) {
+        await client.query(
+          `INSERT INTO notifications (user_id, request_id, type, channel, title, message, status)
+           VALUES ($1, $2, 'REQUEST_STATUS', 'IN_APP', 'Request Fulfilled', 'Your request for blood has been successfully fulfilled. Thank you to the donor!', 'PENDING')`,
+          [userToNotify, requestId]
+        );
+      }
+    }
 
     await client.query('COMMIT');
     return { success: true };

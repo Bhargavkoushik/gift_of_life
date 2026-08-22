@@ -8,6 +8,19 @@ export default function DonorRequests() {
   const [requests, setRequests] = useState([]);
   const [successMsg, setSuccessMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [expandedFormRequestIds, setExpandedFormRequestIds] = useState(new Set());
+
+  const handleICanHelpClick = (reqId) => {
+    setExpandedFormRequestIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(reqId)) {
+        next.delete(reqId);
+      } else {
+        next.add(reqId);
+      }
+      return next;
+    });
+  };
 
   const loadRequests = async () => {
     try {
@@ -111,13 +124,13 @@ export default function DonorRequests() {
   return (
     <div className="page-stack">
       <PageHeader
-        title="Blood Requests Near You"
-        description="Browse active compatible requests and offer your help. Medical eligibility screening is completed at the blood centre."
+        title="Blood Requests"
+        description="Browse active blood requests you may be able to help with."
       />
 
       <div className="space-y-4 max-w-3xl">
         {successMsg && (
-          <div className="rounded-lg bg-emerald-50 p-4 text-xs font-semibold text-emerald-850 border border-emerald-100 leading-relaxed select-none">
+          <div className="rounded-lg bg-emerald-50 p-4 text-xs font-semibold text-emerald-855 border border-emerald-100 leading-relaxed select-none">
             ✓ {successMsg}
           </div>
         )}
@@ -130,8 +143,8 @@ export default function DonorRequests() {
 
         {requests.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">
-            <div className="text-sm font-bold text-slate-900 mb-1">No blood requests near you right now.</div>
-            <div className="text-xs">We'll show relevant requests here when they become available.</div>
+            <div className="text-sm font-bold text-slate-900 mb-1 font-sans">No matching blood requests right now.</div>
+            <div className="text-xs">We will alert you when compatible needs are registered in the blood bank.</div>
           </div>
         ) : (
           <div className="grid gap-6">
@@ -230,12 +243,33 @@ export default function DonorRequests() {
                                 ? 'text-slate-800 font-semibold'
                                 : step.isActive
                                 ? 'text-brand-red font-bold'
-                                : 'text-slate-400'
+                                : 'text-slate-450'
                             }`}>
                               {step.label}
                             </span>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Request-specific Google Form details */}
+                  {expandedFormRequestIds.has(req.id) && !isAccepted && (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 space-y-2">
+                      <div className="pt-2 flex flex-col gap-2">
+                        <p className="text-[11px] text-slate-550 leading-relaxed font-sans select-none">
+                          Please complete the donor details form to help our coordinator verify your eligibility:
+                        </p>
+                        <a
+                          href={`https://docs.google.com/forms/d/e/1FAIpQLSfS2_x1c7a8bZ9fX09q2o3w5e6r7t8y9u0i1o2/viewform?entry.123456789=${encodeURIComponent(
+                            `GL-${new Date(req.created_at || Date.now()).getFullYear()}-${req.id.slice(0, 8).toUpperCase()}`
+                          )}&entry.987654321=${encodeURIComponent(req.donor_token || 'ANONYMOUS')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center rounded-lg bg-brand-red px-3 py-2 text-xxs font-bold text-white hover:bg-brand-red-dark transition shadow-sm select-none"
+                        >
+                          Complete Donor Form →
+                        </a>
                       </div>
                     </div>
                   )}
@@ -246,7 +280,7 @@ export default function DonorRequests() {
                       <div className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
                         📍 Donation Visit Confirmed
                       </div>
-                      <p className="text-xxs text-emerald-750 leading-relaxed">
+                      <p className="text-xxs text-emerald-755 leading-relaxed">
                         Please visit <strong>ASN Raju Charitable Trust Blood Bank & Components</strong> in Bhimavaram for the donation process.
                       </p>
                       <div className="text-xxs text-emerald-800 bg-white/60 p-2.5 rounded-lg border border-emerald-100 font-mono">
@@ -281,7 +315,7 @@ export default function DonorRequests() {
                       <button
                         onClick={() => handleShare(req)}
                         disabled={actioning}
-                        className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer disabled:bg-slate-50"
+                        className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-650 hover:bg-slate-55 transition cursor-pointer disabled:bg-slate-50"
                       >
                         Share
                       </button>
@@ -289,16 +323,20 @@ export default function DonorRequests() {
                       {req.response_status === 'NO_RESPONSE' && (
                         <>
                           <button
-                            onClick={() => handleResponse(req.id, 'ACCEPTED')}
+                            onClick={() => handleICanHelpClick(req.id)}
                             disabled={actioning}
-                            className="rounded-lg bg-brand-red px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-brand-red-dark transition cursor-pointer disabled:bg-slate-300"
+                            className={`rounded-lg px-4 py-2 text-xs font-semibold shadow-sm transition cursor-pointer ${
+                              expandedFormRequestIds.has(req.id)
+                                ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                : 'bg-brand-red text-white hover:bg-brand-red-dark'
+                            }`}
                           >
-                            I Can Help
+                            {expandedFormRequestIds.has(req.id) ? 'Collapse Form' : 'I Can Help'}
                           </button>
                           <button
                             onClick={() => handleResponse(req.id, 'REJECTED')}
                             disabled={actioning}
-                            className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer disabled:bg-slate-50"
+                            className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-650 hover:bg-slate-55 transition cursor-pointer disabled:bg-slate-50"
                           >
                             Decline
                           </button>

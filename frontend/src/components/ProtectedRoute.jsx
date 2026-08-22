@@ -2,7 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProtectedRoute({ children, requiredRole }) {
-  const { isAuthenticated, roles, loading } = useAuth();
+  const { isAuthenticated, user, roles, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -21,7 +21,17 @@ export default function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requiredRole && !roles.includes(requiredRole)) {
+  if (user && !user.is_verified && location.pathname !== '/verify-account') {
+    return <Navigate to="/verify-account" replace />;
+  }
+
+  const isAllowed = requiredRole 
+    ? (requiredRole === 'SUPER_ADMIN' 
+        ? (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN')) 
+        : roles.includes(requiredRole))
+    : true;
+
+  if (requiredRole && !isAllowed) {
     // Authenticated, but lacks required role to view this workspace
     return <Navigate to="/select-role" replace />;
   }

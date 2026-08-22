@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../../components/PageHeader';
 import * as receiverService from '../../../services/receiverService';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function RequestBlood() {
+  const { user: currentUser } = useAuth();
+  const [requestFor, setRequestFor] = useState('SOMEONE_ELSE');
   const [bloodGroup, setBloodGroup] = useState('O+');
   const [requiredUnits, setRequiredUnits] = useState(1);
   const [patientName, setPatientName] = useState('');
@@ -45,7 +48,8 @@ export default function RequestBlood() {
         location,
         required_date_time: requiredDateTime,
         urgency_level: urgencyLevel,
-        description: description || null
+        description: description || null,
+        relation_type: requestFor
       });
 
       setSuccess(true);
@@ -93,6 +97,27 @@ export default function RequestBlood() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Who is this request for?</label>
+              <select
+                value={requestFor}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRequestFor(val);
+                  if (val === 'MYSELF') {
+                    setPatientName(currentUser?.name || '');
+                  } else {
+                    setPatientName('');
+                  }
+                }}
+                disabled={loading}
+                className="w-full rounded-lg border border-slate-200 p-2.5 text-xs focus:outline-none bg-white cursor-pointer font-bold text-slate-700"
+              >
+                <option value="SOMEONE_ELSE">Someone else</option>
+                <option value="MYSELF">Myself</option>
+              </select>
+            </div>
+
+            <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Patient Name</label>
               <input
                 type="text"
@@ -100,8 +125,8 @@ export default function RequestBlood() {
                 placeholder="e.g. Rama Rao"
                 value={patientName}
                 onChange={(e) => setPatientName(e.target.value)}
-                disabled={loading}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-xs focus:border-brand-red focus:outline-none"
+                disabled={loading || requestFor === 'MYSELF'}
+                className="w-full rounded-lg border border-slate-200 p-2.5 text-xs focus:border-brand-red focus:outline-none disabled:bg-slate-50"
               />
             </div>
 

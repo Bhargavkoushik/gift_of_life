@@ -4,7 +4,7 @@ export async function createUser(name, email, phone, passwordHash) {
   const result = await pool.query(
     `INSERT INTO users (name, email, phone, password_hash) 
      VALUES ($1, $2, $3, $4) 
-     RETURNING id, name, email, phone, status, created_at`,
+     RETURNING id, name, email, phone, status, is_verified, created_at`,
     [name, email, phone, passwordHash]
   );
   return result.rows[0];
@@ -12,7 +12,7 @@ export async function createUser(name, email, phone, passwordHash) {
 
 export async function getUserById(id) {
   const result = await pool.query(
-    `SELECT id, name, email, phone, status, created_at, last_login_at, token_version 
+    `SELECT id, name, email, phone, status, is_verified, created_at, last_login_at, token_version 
      FROM users 
      WHERE id = $1`,
     [id]
@@ -39,7 +39,9 @@ export async function incrementTokenVersion(userId) {
 export async function getUserByIdentifier(identifier) {
   // Support both email or phone as login identifier
   const result = await pool.query(
-    `SELECT * FROM users WHERE email = $1 OR phone = $1`,
+    `SELECT id, name, email, phone, password_hash, status, is_verified, created_at, token_version 
+     FROM users 
+     WHERE email = $1 OR phone = $1`,
     [identifier]
   );
   return result.rows[0];
@@ -155,5 +157,53 @@ export async function markResetTokenAsUsed(tokenId) {
   await pool.query(
     `UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = $1`,
     [tokenId]
+  );
+}
+
+export async function getUserVerification(userId) {
+  const result = await pool.query(
+    `SELECT * FROM user_verifications WHERE user_id = $1`,
+    [userId]
+  );
+  return result.rows[0];
+}
+
+export async function upsertUserVerification(userId, method, otpHash, expiresAt, cooldownUntil) {
+  await pool.query(
+    `INSERT INTO user_verifications (user_id, method, otp_hash, expires_at, cooldown_until)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (user_id) DO UPDATE
+     SET method = EXCLUDED.method,
+         otp_hash = EXCLUDED.otp_hash,
+         expires_at = EXCLUDED.expires_at,
+         attempts = 0,
+         sent_at = CURRENT_TIMESTAMP,
+         cooldown_until = EXCLUDED.cooldown_until`,
+    [userId, method, otpHash, expiresAt, cooldownUntil]
+  );
+}
+
+export async function incrementVerificationAttempts(userId) {
+  const result = await pool.query(
+    `UPDATE user_verifications 
+     SET attempts = attempts + 1 
+     WHERE user_id = $1 
+     RETURNING attempts`,
+    [userId]
+  );
+  return result.rows[0]?.attempts;
+}
+
+export async function deleteUserVerification(userId) {
+  await pool.query(
+    `DELETE FROM user_verifications WHERE user_id = $1`,
+    [userId]
+  );
+}
+
+export async function setUserVerified(userId) {
+  await pool.query(
+    `UPDATE users SET is_verified = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+    [userId]
   );
 }

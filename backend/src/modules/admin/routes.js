@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import requireRole from '../../middleware/role.js';
 import * as adminController from './controller.js';
 
 const router = Router();
@@ -24,7 +25,7 @@ router.get('/requests/:id/details', adminController.getRequestDetails);
 router.post('/requests/:id/assign-coordinator', adminController.assignRequestCoordinator);
 router.post('/requests/:id/cancel', adminController.cancelBloodRequest);
 router.get('/audit-logs', adminController.getAuditLogs);
-router.delete('/audit-logs', adminController.deleteAuditLogs);
+router.delete('/audit-logs', requireRole('SUPER_ADMIN'), adminController.deleteAuditLogs);
 
 router.get('/notifications', adminController.getNotifications);
 router.post('/notifications/:id/read', adminController.markNotificationAsRead);

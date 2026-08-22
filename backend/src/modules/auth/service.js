@@ -81,7 +81,7 @@ export async function loginUser({ email, password }) {
   }
 
   const token = jwt.sign(
-    { id: user.id, roles, token_version: user.token_version },
+    { id: user.id, roles, is_verified: user.is_verified, token_version: user.token_version },
     secret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );
@@ -93,6 +93,7 @@ export async function loginUser({ email, password }) {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      is_verified: user.is_verified,
       roles
     }
   };
@@ -113,6 +114,7 @@ export async function getCurrentUser(userId) {
     email: user.email,
     phone: user.phone,
     status: user.status,
+    is_verified: user.is_verified,
     created_at: user.created_at,
     last_login_at: user.last_login_at,
     roles
@@ -125,6 +127,14 @@ export async function becomeDonor(userId, donorData) {
   if (!user) {
     const err = new Error('User not found');
     err.statusCode = 404;
+    throw err;
+  }
+
+  // Enforce account verification
+  if (!user.is_verified) {
+    const err = new Error('Account verification is required before selecting a role.');
+    err.statusCode = 403;
+    err.code = 'ACCOUNT_UNVERIFIED';
     throw err;
   }
 
@@ -169,7 +179,7 @@ export async function becomeDonor(userId, donorData) {
   // Generate refreshed token to include new roles
   const roles = await authRepository.getUserRoles(userId);
   const secret = process.env.JWT_SECRET;
-  const token = jwt.sign({ id: userId, roles }, secret, {
+  const token = jwt.sign({ id: userId, roles, is_verified: true, token_version: user.token_version }, secret, {
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   });
 
@@ -185,6 +195,14 @@ export async function becomeReceiver(userId, receiverData) {
   if (!user) {
     const err = new Error('User not found');
     err.statusCode = 404;
+    throw err;
+  }
+
+  // Enforce account verification
+  if (!user.is_verified) {
+    const err = new Error('Account verification is required before selecting a role.');
+    err.statusCode = 403;
+    err.code = 'ACCOUNT_UNVERIFIED';
     throw err;
   }
 
@@ -220,7 +238,7 @@ export async function becomeReceiver(userId, receiverData) {
   // Refreshed token to include new roles
   const roles = await authRepository.getUserRoles(userId);
   const secret = process.env.JWT_SECRET;
-  const token = jwt.sign({ id: userId, roles }, secret, {
+  const token = jwt.sign({ id: userId, roles, is_verified: true, token_version: user.token_version }, secret, {
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   });
 
@@ -501,4 +519,166 @@ export async function logoutUser(userId) {
       { timestamp: new Date().toISOString() }
     );
   }
+}
+
+export async function sendVerificationCode(userId, method) {
+  if (!['EMAIL', 'SMS'].includes(method)) {
+    const err = new Error('Invalid verification method. Select EMAIL or SMS.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 1. Verify user exists and is not already verified
+  const user = await authRepository.getUserById(userId);
+  if (!user) {
+    const err = new Error('User not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.is_verified) {
+    const err = new Error('Account is already verified.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 2. If SMS method is selected, check provider configuration
+  if (method === 'SMS') {
+    const smsProvider = process.env.SMS_PROVIDER;
+    if (!smsProvider) {
+      const err = new Error('SMS verification is not configured in this environment.');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  // 3. Check for existing verification transaction and verify resend cooldown
+  const existingVer = await authRepository.getUserVerification(userId);
+  if (existingVer && existingVer.cooldown_until) {
+    const cooldownTime = new Date(existingVer.cooldown_until).getTime();
+    const nowTime = Date.now();
+    if (cooldownTime > nowTime) {
+      const secondsLeft = Math.ceil((cooldownTime - nowTime) / 1000);
+      const err = new Error(`Please wait ${secondsLeft} second(s) before requesting another code.`);
+      err.statusCode = 429;
+      err.code = 'COOLDOWN_ACTIVE';
+      err.cooldown_seconds = secondsLeft;
+      throw err;
+    }
+  }
+
+  // 4. Generate 6-digit numeric code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // 5. Hash the code using SHA-256 for secure storage
+  const otpHash = crypto.createHash('sha256').update(code).digest('hex');
+
+  // 6. Set expiration (10 minutes) and cooldown (60 seconds)
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  const cooldownUntil = new Date(Date.now() + 60 * 1000);
+
+  // 7. Upsert verification transaction
+  await authRepository.upsertUserVerification(userId, method, otpHash, expiresAt, cooldownUntil);
+
+  // 8. Deliver verification code
+  try {
+    if (method === 'EMAIL') {
+      await notificationService.sendVerificationCodeEmail(user, code);
+    } else {
+      await notificationService.sendVerificationCodeSMS(user, code);
+    }
+  } catch (error) {
+    const err = new Error(`Verification service is temporarily unavailable: ${error.message}`);
+    err.statusCode = 503;
+    throw err;
+  }
+
+  return { cooldown_seconds: 60 };
+}
+
+export async function verifyCode(userId, code) {
+  if (!code || code.length !== 6) {
+    const err = new Error('Invalid verification code format. Code must be 6 digits.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 1. Verify user exists and is not already verified
+  const user = await authRepository.getUserById(userId);
+  if (!user) {
+    const err = new Error('User not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.is_verified) {
+    const err = new Error('Account is already verified.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 2. Fetch active verification transaction
+  const ver = await authRepository.getUserVerification(userId);
+  if (!ver) {
+    const err = new Error('No active verification transaction found. Please request a new code.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 3. Check attempts limit (e.g. max 5 attempts)
+  const MAX_ATTEMPTS = 5;
+  if (ver.attempts >= MAX_ATTEMPTS) {
+    const err = new Error('Too many incorrect verification attempts. Please request a new code.');
+    err.statusCode = 400;
+    err.code = 'ATTEMPTS_EXCEEDED';
+    throw err;
+  }
+
+  // 4. Check expiration
+  const expiresAtTime = new Date(ver.expires_at).getTime();
+  if (expiresAtTime < Date.now()) {
+    const err = new Error('Verification code has expired. Please request a new one.');
+    err.statusCode = 400;
+    err.code = 'OTP_EXPIRED';
+    throw err;
+  }
+
+  // 5. Increment attempts in the DB
+  const attempts = await authRepository.incrementVerificationAttempts(userId);
+
+  // 6. Validate the code by comparing hashes
+  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+  if (codeHash !== ver.otp_hash) {
+    const attemptsRemaining = Math.max(0, MAX_ATTEMPTS - attempts);
+    const err = new Error(`Incorrect verification code. ${attemptsRemaining} attempt(s) remaining.`);
+    err.statusCode = 400;
+    err.code = 'INVALID_CODE';
+    err.attempts_remaining = attemptsRemaining;
+    throw err;
+  }
+
+  // 7. Successful verification: toggle flag and clean up verification record
+  await authRepository.setUserVerified(userId);
+  await authRepository.deleteUserVerification(userId);
+
+  // 8. Generate refreshed token including the is_verified status and current roles
+  const roles = await authRepository.getUserRoles(userId);
+  const secret = process.env.JWT_SECRET;
+  const token = jwt.sign(
+    { id: userId, roles, is_verified: true, token_version: user.token_version },
+    secret,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+  );
+
+  return {
+    token,
+    user: {
+      id: userId,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      is_verified: true,
+      roles
+    }
+  };
 }

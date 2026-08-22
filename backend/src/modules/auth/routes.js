@@ -18,9 +18,16 @@ const recoveryLimiter = createRateLimiter({
   message: 'Too many recovery requests, please try again in an hour.'
 });
 
+router.get('/setup-super-admin/status', authController.getSetupStatus);
+router.post('/setup-super-admin', authController.setupSuperAdmin);
+router.post('/google-form-callback', authController.googleFormCallback);
+
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.get('/config', authController.getAuthConfig);
 router.get('/me', authMiddleware, authController.me);
+router.post('/verification/send', authMiddleware, authController.sendVerificationCode);
+router.post('/verification/verify', authMiddleware, authController.verifyCode);
 router.post('/roles/donor', authMiddleware, authController.becomeDonor);
 router.post('/roles/receiver', authMiddleware, authController.becomeReceiver);
 
