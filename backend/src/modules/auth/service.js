@@ -130,6 +130,15 @@ export async function becomeDonor(userId, donorData) {
     throw err;
   }
 
+  // Prevent privileged accounts from becoming donors
+  const existingRoles = await authRepository.getUserRoles(userId);
+  const isPrivileged = existingRoles.some(r => ['SUPER_ADMIN', 'COORDINATOR', 'BLOOD_BANK_ADMIN'].includes(r));
+  if (isPrivileged) {
+    const err = new Error('Privileged operational accounts are not permitted to register as donors.');
+    err.statusCode = 403;
+    throw err;
+  }
+
   // Enforce account verification
   if (!user.is_verified) {
     const err = new Error('Account verification is required before selecting a role.');
@@ -195,6 +204,15 @@ export async function becomeReceiver(userId, receiverData) {
   if (!user) {
     const err = new Error('User not found');
     err.statusCode = 404;
+    throw err;
+  }
+
+  // Prevent privileged accounts from becoming receivers
+  const existingRoles = await authRepository.getUserRoles(userId);
+  const isPrivileged = existingRoles.some(r => ['SUPER_ADMIN', 'COORDINATOR', 'BLOOD_BANK_ADMIN'].includes(r));
+  if (isPrivileged) {
+    const err = new Error('Privileged operational accounts are not permitted to register as receivers.');
+    err.statusCode = 403;
     throw err;
   }
 

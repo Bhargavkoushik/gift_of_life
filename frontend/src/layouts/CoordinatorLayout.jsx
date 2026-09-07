@@ -3,6 +3,7 @@ import { Outlet, useNavigate, NavLink, Link, useLocation } from 'react-router-do
 import logo from '../assets/logo.jpeg';
 import { useAuth } from '../context/AuthContext';
 import MedicalBackground from '../components/MedicalBackground';
+import BackButton from '../components/BackButton';
 
 export default function CoordinatorLayout() {
   const { logout, user: currentUser } = useAuth();
@@ -315,6 +316,7 @@ export default function CoordinatorLayout() {
 
         {/* MAIN OUTLET CONTAINER */}
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6">
+          <BackButton />
           <Outlet />
         </main>
       </div>

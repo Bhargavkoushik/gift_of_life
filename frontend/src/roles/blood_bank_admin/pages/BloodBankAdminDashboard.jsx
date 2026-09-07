@@ -1,20 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import PageHeader from '../../../components/PageHeader';
 import * as bloodBankAdminService from '../../../services/bloodBankAdminService';
 
 export default function BloodBankAdminDashboard() {
   const [requests, setRequests] = useState([]);
+  const [donors, setDonors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
   const loadData = async () => {
     try {
-      const data = await bloodBankAdminService.getRequests();
-      setRequests(data);
+      const [requestsData, donorsData] = await Promise.all([
+        bloodBankAdminService.getRequests(),
+        bloodBankAdminService.getDonors()
+      ]);
+      setRequests(requestsData);
+      setDonors(donorsData);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to load requests.');
+      setError(err.response?.data?.message || err.message || 'Failed to load dashboard metrics.');
     } finally {
       setLoading(false);
     }
@@ -27,7 +31,7 @@ export default function BloodBankAdminDashboard() {
   const getFriendlyStatus = (status) => {
     const mapping = {
       'PENDING': 'Awaiting Action',
-      'APPROVED': 'Coordinator Reviewing',
+      'APPROVED': 'Approved',
       'DONORS_ALERTED': 'Searching Donors',
       'DONOR_RESPONDED': 'Donor Responded',
       'COORDINATOR_ASSIGNED': 'Coordinating',
@@ -73,7 +77,7 @@ export default function BloodBankAdminDashboard() {
 
   if (error) {
     return (
-      <div className="page-stack max-w-4xl">
+      <div className="page-stack max-w-5xl">
         <PageHeader title="Blood Bank Admin Dashboard" />
         <div className="rounded-lg bg-rose-50 p-4 text-xs font-semibold text-rose-800 border border-rose-100">
           ⚠️ {error}
@@ -83,73 +87,99 @@ export default function BloodBankAdminDashboard() {
   }
 
   const activeRequests = requests.filter(r => ['PENDING', 'APPROVED', 'DONORS_ALERTED', 'DONOR_RESPONDED', 'COORDINATOR_ASSIGNED', 'DONOR_CONFIRMED'].includes(r.status));
+  const urgentRequests = requests.filter(r => (r.urgency_level === 'URGENT' || r.urgency_level === 'EMERGENCY') && !['FULFILLED', 'CANCELLED', 'REJECTED'].includes(r.status));
   const fulfilledRequests = requests.filter(r => r.status === 'FULFILLED');
+  const eligibleDonors = donors.filter(d => d.availability_status === 'AVAILABLE' && d.eligibility_status === 'ELIGIBLE');
+
+  // Requests requiring attention: Urgents/Emergencies or PENDING review
+  const attentionRequests = requests
+    .filter(r => (r.urgency_level === 'EMERGENCY' || r.urgency_level === 'URGENT' || r.status === 'PENDING') && !['FULFILLED', 'CANCELLED', 'REJECTED'].includes(r.status))
+    .slice(0, 3);
 
   return (
-    <div className="page-stack max-w-5xl">
-      <PageHeader
-        title="Blood Bank Admin Dashboard"
-        description="Submit blood requests directly and oversee coordinates for physical donation visits."
-      />
+    <div className="page-stack max-w-7xl">
+      
+      {/* HEADER SECTION WITH FLEX ACTION */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <PageHeader
+          title="Blood Bank Admin Dashboard"
+          description="Oversee and monitor blood requests, donor matching progress, and coordination activity."
+        />
+        <Link
+          to="/blood-bank-admin/requests/create"
+          className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-bold px-4 py-2.5 text-xs shadow-sm transition duration-150 shrink-0 font-sans"
+        >
+          + Create Request
+        </Link>
+      </div>
 
-      {/* METRICS ROW */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450">Active Requests</span>
-          <div className="text-2xl font-extrabold text-slate-800">{activeRequests.length}</div>
-          <span className="text-xxs text-slate-400 font-medium">Currently seeking matching donors</span>
+      {/* METRICS GRID (4 columns) */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {/* Active Requests */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Requests</div>
+          <div className="text-2xl font-extrabold text-slate-850">{activeRequests.length}</div>
+          <div className="text-xxs text-slate-400 font-medium">Seeking matching donors</div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450">Fulfilled Requests</span>
+        {/* Urgent / Emergency */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Urgent/Emergency</div>
+          <div className="text-2xl font-extrabold text-rose-600">{urgentRequests.length}</div>
+          <div className="text-xxs text-slate-400 font-medium">Life-critical review states</div>
+        </div>
+
+        {/* Fulfilled Requests */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fulfilled</div>
           <div className="text-2xl font-extrabold text-emerald-600">{fulfilledRequests.length}</div>
-          <span className="text-xxs text-slate-400 font-medium">Completed donation events</span>
+          <div className="text-xxs text-slate-400 font-medium">Completed donation events</div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-center items-center">
-          <Link
-            to="/blood-bank-admin/requests/create"
-            className="w-full text-center rounded-xl bg-indigo-650 hover:bg-indigo-750 text-white font-bold py-3 text-xs shadow-sm transition duration-150"
-          >
-            + Create New Request
-          </Link>
+        {/* Available Donors */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Eligible Donors</div>
+          <div className="text-2xl font-extrabold text-indigo-600">{eligibleDonors.length}</div>
+          <div className="text-xxs text-slate-400 font-medium">Active compatible pools</div>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* RECENT REQUESTS LIST */}
-        <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 font-sans border-b border-slate-100 pb-3 flex justify-between items-center">
-            <span>Recent Requests Queue</span>
-            <Link to="/blood-bank-admin/requests" className="text-xxs font-bold text-indigo-650 hover:underline">
-              View All
+        {/* RECENT REQUESTS LIST (Left column) */}
+        <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-sans">Recent Blood Requests</h3>
+            <Link to="/blood-bank-admin/requests" className="text-xxs font-bold text-brand-red hover:underline">
+              View All →
             </Link>
-          </h3>
+          </div>
 
           {requests.length === 0 ? (
-            <p className="text-center text-slate-400 text-xs py-10 font-semibold">No requests logged in the system.</p>
+            <div className="py-12 text-center text-xs text-slate-400 font-medium font-sans">
+              No requests logged in the system.
+            </div>
           ) : (
-            <div className="divide-y divide-slate-150">
+            <div className="divide-y divide-slate-100 font-medium font-sans text-xs">
               {requests.slice(0, 5).map(req => (
-                <div key={req.id} className="py-3.5 flex items-center justify-between first:pt-0 last:pb-0">
+                <div key={req.id} className="py-3 flex items-center justify-between first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3">
-                    <span className="h-10 w-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-rose-600 font-black text-xs font-sans">
+                    <span className="h-9 w-9 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-brand-red font-black text-xs">
                       {req.blood_group}
                     </span>
                     <div>
                       <h4 className="text-xs font-bold text-slate-800">Patient: {req.patient_name}</h4>
-                      <span className="text-[10px] text-slate-400 font-medium block">
-                        {req.required_units} Units · {req.hospital_name} · {new Date(req.created_at).toLocaleDateString()}
+                      <span className="text-[10px] text-slate-400 font-semibold mt-0.5 block">
+                        {req.required_units} Unit(s) · {req.hospital_name} · {req.location}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border uppercase ${getStatusBadgeStyle(req.status)}`}>
                       {getFriendlyStatus(req.status)}
                     </span>
                     <Link
                       to={`/blood-bank-admin/requests/${req.id}`}
-                      className="text-xxs font-bold text-indigo-650 hover:underline"
+                      className="rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 px-2.5 py-1 text-xxs font-bold text-slate-700 transition"
                     >
                       View
                     </Link>
@@ -160,28 +190,40 @@ export default function BloodBankAdminDashboard() {
           )}
         </div>
 
-        {/* RIGHT COLUMN: RECRUITMENT AND COORDINATES INFO */}
-        <div className="md:col-span-1 space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 font-sans border-b border-slate-100 pb-2">
-              Blood Bank Facility
-            </h3>
-            <div className="text-xxs text-slate-500 leading-relaxed space-y-3 font-semibold">
-              <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-1 text-slate-655">
-                <span className="text-[10px] font-bold text-indigo-800 uppercase block">Trust Site Coordinates</span>
-                <strong>ASN Raju Charitable Trust</strong>
-                <p className="mt-0.5 text-xxs font-medium text-slate-500 leading-normal">
-                  Sarovar Complex, Juvvalapalem Road, Bhimavaram - 534 202.
-                </p>
-              </div>
-              <p>
-                As a Blood Bank Administrator, you have the authority to create blood requests directly for patient attendants or hospitals.
-              </p>
-              <p>
-                Every request created automatically matching compatible local donors and triggers coordinator routing rules.
-              </p>
+        {/* REQUESTS REQUIRING ATTENTION (Right column) */}
+        <div className="md:col-span-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-sans border-b border-slate-100 pb-2">
+            Needs Attention
+          </h3>
+
+          {attentionRequests.length === 0 ? (
+            <div className="py-8 text-center text-xxs text-slate-400 font-semibold font-sans">
+              ✓ All requests are coordinated and monitored.
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3 font-semibold text-xxs font-sans text-slate-600">
+              {attentionRequests.map(req => (
+                <div key={req.id} className="p-3 bg-rose-50/50 border border-rose-100 rounded-xl space-y-1.5 flex flex-col justify-between">
+                  <div className="leading-tight">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-brand-red uppercase">{req.blood_group} Needed</span>
+                      <span className="text-[8px] font-bold text-rose-700 bg-rose-100/50 px-1.5 py-0.5 rounded border border-rose-150">
+                        {req.urgency_level}
+                      </span>
+                    </div>
+                    <strong className="text-slate-800 text-[11px] block mt-1">Patient: {req.patient_name}</strong>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">{req.hospital_name}</span>
+                  </div>
+                  <Link
+                    to={`/blood-bank-admin/requests/${req.id}`}
+                    className="self-end text-xxs font-black text-brand-red hover:underline mt-1"
+                  >
+                    Manage Request →
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

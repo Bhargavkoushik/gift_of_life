@@ -1,4 +1,5 @@
 import * as requestsService from '../requests/service.js';
+import * as repository from './repository.js';
 import { z } from 'zod';
 
 const createRequestSchema = z.object({
@@ -79,6 +80,31 @@ export async function cancelRequest(req, res, next) {
     return res.status(200).json({
       status: 'success',
       request
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDonors(req, res, next) {
+  try {
+    const { search, bloodGroup, availability } = req.query;
+    const donors = await repository.getDonorsList({ search, bloodGroup, availability });
+    return res.status(200).json({
+      status: 'success',
+      donors
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getCoordinators(req, res, next) {
+  try {
+    const coordinators = await repository.getCoordinatorsList();
+    return res.status(200).json({
+      status: 'success',
+      coordinators
     });
   } catch (error) {
     next(error);
