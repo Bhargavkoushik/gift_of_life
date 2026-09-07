@@ -52,13 +52,22 @@ export default function SelectRole() {
 
   const onboardParam = searchParams.get('onboard');
 
+  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('ADMIN');
+  const isBloodBankAdmin = roles.includes('BLOOD_BANK_ADMIN');
+  const isCoordinator = roles.includes('COORDINATOR');
+  const isPrivileged = isSuperAdmin || isBloodBankAdmin || isCoordinator;
+
   useEffect(() => {
+    if (isPrivileged) {
+      setActiveForm(null);
+      return;
+    }
     if (onboardParam === 'donor' && roles && !roles.includes('DONOR')) {
       setActiveForm('donor');
     } else if (onboardParam === 'receiver' && roles && !roles.includes('RECEIVER')) {
       setActiveForm('receiver');
     }
-  }, [onboardParam, roles]);
+  }, [onboardParam, roles, isPrivileged]);
 
   const donorForm = useForm({
     resolver: zodResolver(donorSchema),
@@ -136,91 +145,8 @@ export default function SelectRole() {
       {/* Main role workspaces select list */}
       {!activeForm && (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {/* DONOR CARD */}
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
-            <div>
-              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${roles.includes('DONOR') ? 'bg-brand-red-light/35 text-brand-red' : 'bg-slate-100 text-slate-500'}`}>
-                {roles.includes('DONOR') ? 'Active Profile' : 'Not Activated'}
-              </span>
-              <h3 className="mt-4 text-lg font-bold text-slate-900">Blood Donor Workspace</h3>
-              <p className="mt-2 text-sm text-slate-500">
-                Update your donation availability, receive regional emergency blood requests, and track your donation history.
-              </p>
-            </div>
-            <div className="mt-6">
-              {roles.includes('DONOR') ? (
-                <button
-                  onClick={() => handleSelectRole('DONOR')}
-                  className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark"
-                >
-                  Enter Donor Dashboard
-                </button>
-              ) : (
-                <button
-                  onClick={() => setActiveForm('donor')}
-                  className="w-full rounded-lg border border-brand-red py-2.5 text-sm font-semibold text-brand-red hover:bg-brand-red-light/35"
-                >
-                  Become a Donor
-                </button>
-              )}
-            </div>
-          </article>
-
-          {/* RECEIVER CARD */}
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
-            <div>
-              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${roles.includes('RECEIVER') ? 'bg-brand-red-light/35 text-brand-red' : 'bg-slate-100 text-slate-500'}`}>
-                {roles.includes('RECEIVER') ? 'Active Profile' : 'Not Activated'}
-              </span>
-              <h3 className="mt-4 text-lg font-bold text-slate-900">Blood Request Workspace</h3>
-              <p className="mt-2 text-sm text-slate-500">
-                Create emergency or standard blood requests, track matched donors in real-time, and manage fulfillment.
-              </p>
-            </div>
-            <div className="mt-6">
-              {roles.includes('RECEIVER') ? (
-                <button
-                  onClick={() => handleSelectRole('RECEIVER')}
-                  className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark"
-                >
-                  Enter Receiver Dashboard
-                </button>
-              ) : (
-                <button
-                  onClick={() => setActiveForm('receiver')}
-                  className="w-full rounded-lg border border-brand-red py-2.5 text-sm font-semibold text-brand-red hover:bg-brand-red-light/35"
-                >
-                  Request Blood (Register Profile)
-                </button>
-              )}
-            </div>
-          </article>
-
-          {/* COORDINATOR WORKSPACE CARD (Only visible if coordinator role is assigned) */}
-          {roles.includes('COORDINATOR') && (
-            <article className="rounded-2xl border border-blue-200 bg-blue-50/10 p-6 shadow-sm flex flex-col justify-between">
-              <div>
-                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
-                  Active Profile
-                </span>
-                <h3 className="mt-4 text-lg font-bold text-slate-900">Coordinator Workspace</h3>
-                <p className="mt-2 text-sm text-slate-500">
-                  Coordinate blood requests, confirm donor screening results, and log completed donations.
-                </p>
-              </div>
-              <div className="mt-6">
-                <button
-                  onClick={() => handleSelectRole('COORDINATOR')}
-                  className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                  Enter Coordinator Dashboard
-                </button>
-              </div>
-            </article>
-          )}
-
-          {/* SUPER ADMIN WORKSPACE CARD (Only visible if super admin or admin role is assigned) */}
-          {(roles.includes('SUPER_ADMIN') || roles.includes('ADMIN')) && (
+          {/* If the user is Super Admin */}
+          {isSuperAdmin && (
             <article className="rounded-2xl border border-purple-200 bg-purple-50/10 p-6 shadow-sm flex flex-col justify-between">
               <div>
                 <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-purple-100 text-purple-700">
@@ -234,16 +160,16 @@ export default function SelectRole() {
               <div className="mt-6">
                 <button
                   onClick={() => handleSelectRole(roles.includes('SUPER_ADMIN') ? 'SUPER_ADMIN' : 'ADMIN')}
-                  className="w-full rounded-lg bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-700"
+                  className="w-full rounded-lg bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-700 cursor-pointer"
                 >
-                  Enter Super Admin Workspace
+                  Enter Super Admin Panel
                 </button>
               </div>
             </article>
           )}
 
-          {/* BLOOD BANK ADMIN CARD (Only visible if blood bank admin role is assigned) */}
-          {roles.includes('BLOOD_BANK_ADMIN') && (
+          {/* If the user is Blood Bank Admin */}
+          {isBloodBankAdmin && (
             <article className="rounded-2xl border border-indigo-200 bg-indigo-50/10 p-6 shadow-sm flex flex-col justify-between">
               <div>
                 <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-indigo-100 text-indigo-700">
@@ -257,12 +183,100 @@ export default function SelectRole() {
               <div className="mt-6">
                 <button
                   onClick={() => handleSelectRole('BLOOD_BANK_ADMIN')}
-                  className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                  className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 cursor-pointer"
                 >
                   Enter Blood Bank Admin Panel
                 </button>
               </div>
             </article>
+          )}
+
+          {/* If the user is Coordinator */}
+          {isCoordinator && (
+            <article className="rounded-2xl border border-blue-200 bg-blue-50/10 p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Active Profile
+                </span>
+                <h3 className="mt-4 text-lg font-bold text-slate-900">Coordinator Workspace</h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Coordinate blood requests, confirm donor screening results, and log completed donations.
+                </p>
+              </div>
+              <div className="mt-6">
+                <button
+                  onClick={() => handleSelectRole('COORDINATOR')}
+                  className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 cursor-pointer"
+                >
+                  Enter Coordinator Panel
+                </button>
+              </div>
+            </article>
+          )}
+
+          {/* Regular Users options: Only if they don't have any of the 3 privileged roles */}
+          {!isPrivileged && (
+            <>
+              {/* DONOR CARD */}
+              <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${roles.includes('DONOR') ? 'bg-brand-red-light/35 text-brand-red' : 'bg-slate-100 text-slate-500'}`}>
+                    {roles.includes('DONOR') ? 'Active Profile' : 'Not Activated'}
+                  </span>
+                  <h3 className="mt-4 text-lg font-bold text-slate-900">Blood Donor Workspace</h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Update your donation availability, receive regional emergency blood requests, and track your donation history.
+                  </p>
+                </div>
+                <div className="mt-6">
+                  {roles.includes('DONOR') ? (
+                    <button
+                      onClick={() => handleSelectRole('DONOR')}
+                      className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark cursor-pointer"
+                    >
+                      Enter Donor Dashboard
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setActiveForm('donor')}
+                      className="w-full rounded-lg border border-brand-red py-2.5 text-sm font-semibold text-brand-red hover:bg-brand-red-light/35 cursor-pointer"
+                    >
+                      Become a Donor
+                    </button>
+                  )}
+                </div>
+              </article>
+
+              {/* RECEIVER CARD */}
+              <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${roles.includes('RECEIVER') ? 'bg-brand-red-light/35 text-brand-red' : 'bg-slate-100 text-slate-500'}`}>
+                    {roles.includes('RECEIVER') ? 'Active Profile' : 'Not Activated'}
+                  </span>
+                  <h3 className="mt-4 text-lg font-bold text-slate-900">Blood Request Workspace</h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Create emergency or standard blood requests, track matched donors in real-time, and manage fulfillment.
+                  </p>
+                </div>
+                <div className="mt-6">
+                  {roles.includes('RECEIVER') ? (
+                    <button
+                      onClick={() => handleSelectRole('RECEIVER')}
+                      className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark cursor-pointer"
+                    >
+                      Enter Receiver Dashboard
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setActiveForm('receiver')}
+                      className="w-full rounded-lg border border-brand-red py-2.5 text-sm font-semibold text-brand-red hover:bg-brand-red-light/35 cursor-pointer"
+                    >
+                      Request Blood (Register Profile)
+                    </button>
+                  )}
+                </div>
+              </article>
+            </>
           )}
         </div>
       )}

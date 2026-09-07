@@ -25,6 +25,9 @@ export default function ProfileAccount() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   
+  // Profile Mode State
+  const [isEditMode, setIsEditMode] = useState(false);
+
   // Profile Form States
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -82,6 +85,15 @@ export default function ProfileAccount() {
     fetchProfile();
   }, []);
 
+  const handleCancelEdit = () => {
+    if (profile) {
+      setName(profile.name || '');
+      setPhone(profile.phone || '');
+    }
+    setProfileError(null);
+    setIsEditMode(false);
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setProfileError(null);
@@ -103,8 +115,8 @@ export default function ProfileAccount() {
     try {
       await authService.updateProfile(name, phone);
       setProfileSuccess('Profile updated successfully.');
-      // Refresh local profile state
       setProfile(prev => ({ ...prev, name, phone }));
+      setIsEditMode(false);
       setTimeout(() => setProfileSuccess(null), 4000);
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Failed to update profile details.';
@@ -128,7 +140,6 @@ export default function ProfileAccount() {
       setPasswordSuccess('Password changed successfully. Please sign in again.');
       reset();
       
-      // Auto logout after 3 seconds to force re-authentication
       setTimeout(() => {
         logout(true);
       }, 3000);
@@ -161,16 +172,27 @@ export default function ProfileAccount() {
     <div className="page-stack">
       <PageHeader
         title="Profile / Account"
-        description="Manage your administrator account and security settings."
+        description="Manage your account profile and credentials details."
       />
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 max-w-5xl">
-        {/* Left Side: Profile Details form */}
+        {/* Left Side: Profile details (View Mode vs Edit Mode) */}
         <div className="lg:col-span-2 space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3 mb-4 select-none">
-              My Profile
-            </h3>
+            
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4 select-none">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                My Profile
+              </h3>
+              {!isEditMode && (
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 px-3 py-1 text-xxs font-black text-slate-700 transition cursor-pointer"
+                >
+                  Edit Profile
+                </button>
+              )}
+            </div>
 
             {profileError && (
               <div className="rounded-lg bg-rose-50 p-3 text-xxs font-semibold text-rose-850 border border-rose-100 mb-4 select-none leading-relaxed">
@@ -184,54 +206,84 @@ export default function ProfileAccount() {
               </div>
             )}
 
-            <form onSubmit={handleUpdateProfile} className="space-y-4 font-semibold text-slate-700 text-xxs">
-              {/* Full Name */}
-              <div className="flex flex-col space-y-1">
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Full Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your Full Name"
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-red transition"
-                  required
-                />
-              </div>
+            {isEditMode ? (
+              <form onSubmit={handleUpdateProfile} className="space-y-4 font-semibold text-slate-700 text-xxs">
+                {/* Full Name */}
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your Full Name"
+                    className="rounded-lg border border-slate-200 px-3 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-red transition font-bold"
+                    required
+                  />
+                </div>
 
-              {/* Official Email (Read-Only) */}
-              <div className="flex flex-col space-y-1">
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Official Email (Read-Only)</label>
-                <input
-                  type="email"
-                  value={profile?.email || ''}
-                  disabled
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-400 select-none cursor-not-allowed"
-                />
-                <span className="text-[9px] text-slate-400 font-bold block pt-0.5">Verified official login email credential.</span>
-              </div>
+                {/* Official Email (Read-Only) */}
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Official Email (Read-Only)</label>
+                  <input
+                    type="email"
+                    value={profile?.email || ''}
+                    disabled
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-400 select-none cursor-not-allowed font-bold"
+                  />
+                </div>
 
-              {/* Phone (Unverified marker) */}
-              <div className="flex flex-col space-y-1">
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Phone Number</label>
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Phone Number"
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-red transition"
-                />
-                <span className="text-[9px] text-slate-400 font-bold block pt-0.5">⚠️ Unverified phone contact number.</span>
-              </div>
+                {/* Phone */}
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Phone Number</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Phone Number"
+                    className="rounded-lg border border-slate-200 px-3 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-red transition font-bold"
+                  />
+                </div>
 
-              {/* Actions */}
-              <button
-                type="submit"
-                disabled={updatingProfile}
-                className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-bold px-4 py-2.5 text-xs transition cursor-pointer select-none disabled:bg-slate-350"
-              >
-                {updatingProfile ? 'Saving Changes...' : 'Save Profile details'}
-              </button>
-            </form>
+                {/* Edit Mode Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={updatingProfile}
+                    className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-bold px-4 py-2 text-xs transition cursor-pointer select-none disabled:bg-slate-350"
+                  >
+                    {updatingProfile ? 'Saving Changes...' : 'Save Changes'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    disabled={updatingProfile}
+                    className="rounded-lg border border-slate-250 bg-white hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 text-xs transition cursor-pointer select-none"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4 font-semibold text-slate-700 text-xxs font-sans">
+                {/* Full Name */}
+                <div className="border-b border-slate-50 pb-2">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Full Name</span>
+                  <span className="text-slate-800 text-xs font-black block mt-1">{profile?.name}</span>
+                </div>
+
+                {/* Official Email */}
+                <div className="border-b border-slate-50 pb-2">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Official Email</span>
+                  <span className="text-slate-800 text-xs font-black block mt-1">{profile?.email}</span>
+                </div>
+
+                {/* Phone Number */}
+                <div className="pb-2">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Phone Number</span>
+                  <span className="text-slate-800 text-xs font-black block mt-1">{profile?.phone || 'N/A'}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Security Section (Change Password) */}
@@ -241,13 +293,13 @@ export default function ProfileAccount() {
             </h3>
 
             {passwordError && (
-              <div className="rounded-lg bg-rose-50 p-3 text-xxs font-semibold text-rose-850 border border-rose-100 mb-4 select-none leading-relaxed">
+              <div className="rounded-lg bg-rose-50 p-3 text-xxs font-semibold text-rose-855 border border-rose-100 mb-4 select-none leading-relaxed">
                 ⚠️ {passwordError}
               </div>
             )}
 
             {passwordSuccess && (
-              <div className="rounded-lg bg-emerald-50 p-3 text-xxs font-semibold text-emerald-850 border border-emerald-100 mb-4 select-none leading-relaxed">
+              <div className="rounded-lg bg-emerald-50 p-3 text-xxs font-semibold text-emerald-855 border border-emerald-100 mb-4 select-none leading-relaxed">
                 ✓ {passwordSuccess}
               </div>
             )}
@@ -295,7 +347,6 @@ export default function ProfileAccount() {
                   </button>
                 </div>
 
-                {/* Complexity visual indicators list */}
                 <div className="space-y-1 text-[10px] select-none pl-1 mt-1">
                   <div className="text-slate-400 font-bold mb-1">New password must contain:</div>
                   <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-green-600 font-bold' : 'text-red-500'}`}>
@@ -332,7 +383,7 @@ export default function ProfileAccount() {
                   <input
                     type={showConfirm ? 'text' : 'password'}
                     placeholder="Confirm New Password"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-red transition"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-xs text-slate-850 placeholder-slate-400 focus:outline-none focus:border-brand-red transition"
                     {...register('confirmPassword')}
                   />
                   <button
@@ -364,7 +415,7 @@ export default function ProfileAccount() {
           </div>
         </div>
 
-        {/* Right Side: Read-Only Account information card */}
+        {/* Right Side: Account Information card with green/red verification status badge */}
         <div className="space-y-6 col-span-1">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm font-semibold text-slate-700 text-xxs leading-relaxed">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3 mb-4 select-none">
@@ -373,23 +424,37 @@ export default function ProfileAccount() {
 
             <div className="space-y-4">
               {/* Role */}
-              <div className="flex justify-between items-center py-1 border-b border-slate-50">
+              <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
                 <span className="text-slate-400 font-bold">Assigned Role</span>
                 <span className="rounded bg-rose-50 text-brand-red px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                   {profile?.roles?.join(', ') || 'ADMIN'}
                 </span>
               </div>
 
-              {/* Status */}
-              <div className="flex justify-between items-center py-1 border-b border-slate-50">
+              {/* Account status */}
+              <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
                 <span className="text-slate-400 font-bold">Account Status</span>
                 <span className="rounded bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider select-none">
                   {profile?.status || 'Active'}
                 </span>
               </div>
 
+              {/* Verification Badge */}
+              <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
+                <span className="text-slate-400 font-bold">Verification</span>
+                {profile?.is_verified ? (
+                  <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-755 border border-emerald-150 px-2.5 py-0.5 text-[9px] font-bold uppercase">
+                    ● Account Verified
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded-full bg-rose-50 text-rose-755 border border-rose-150 px-2.5 py-0.5 text-[9px] font-bold uppercase">
+                    ● Account Not Verified
+                  </span>
+                )}
+              </div>
+
               {/* Created */}
-              <div className="flex justify-between items-start py-1 border-b border-slate-50">
+              <div className="flex justify-between items-start py-1.5 border-b border-slate-50">
                 <span className="text-slate-400 font-bold">Created</span>
                 <span className="text-slate-800 font-bold text-right font-mono">
                   {profile?.created_at ? new Date(profile.created_at).toLocaleString() : 'N/A'}
@@ -397,7 +462,7 @@ export default function ProfileAccount() {
               </div>
 
               {/* Last Login */}
-              <div className="flex justify-between items-start py-1">
+              <div className="flex justify-between items-start py-1.5">
                 <span className="text-slate-400 font-bold">Last Login</span>
                 <span className="text-slate-800 font-bold text-right font-mono">
                   {profile?.last_login_at ? new Date(profile.last_login_at).toLocaleString() : 'Just now'}

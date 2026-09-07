@@ -154,12 +154,6 @@ export default function CoordinatorRequestDetails() {
   return (
     <div className="page-stack">
       <div>
-        <button
-          onClick={() => navigate(fromRoute)}
-          className="mb-3 flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer select-none"
-        >
-          ← Back to {backLabel}
-        </button>
         <PageHeader
           title={`Coordinate Request for ${request.patient_name}`}
           description={`Track stages, manage donor check-ins, and record clinical outcomes.`}

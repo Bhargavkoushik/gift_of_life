@@ -215,7 +215,7 @@ export default function CreateRequest() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-650 py-3 text-xs font-bold text-white hover:bg-indigo-750 transition cursor-pointer"
+            className="w-full rounded-lg bg-brand-red py-3 text-xs font-bold text-white hover:bg-brand-red-dark transition cursor-pointer"
           >
             {loading ? 'Submitting Request...' : 'Submit Blood Request'}
           </button>
@@ -253,7 +253,7 @@ export default function CreateRequest() {
                     setShowDuplicateModal(false);
                     navigate(`/blood-bank-admin/requests/${duplicateRequestId}`);
                   }}
-                  className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 cursor-pointer transition text-xxs"
+                  className="rounded-xl bg-brand-red hover:bg-brand-red-dark text-white font-bold px-4 py-2 cursor-pointer transition text-xxs"
                 >
                   View existing request
                 </button>

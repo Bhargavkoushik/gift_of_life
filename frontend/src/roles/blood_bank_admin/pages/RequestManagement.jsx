@@ -109,7 +109,7 @@ export default function RequestManagement() {
         />
         <Link
           to="/blood-bank-admin/requests/create"
-          className="rounded-lg bg-indigo-600 hover:bg-indigo-755 text-white font-bold px-4 py-2 text-xs shadow-sm transition"
+          className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-bold px-4 py-2.5 text-xs shadow-sm transition"
         >
           + Create Request
         </Link>
@@ -129,7 +129,7 @@ export default function RequestManagement() {
             placeholder="Search patient, hospital, location..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 p-2 text-xs focus:outline-none focus:border-indigo-500 font-semibold"
+            className="w-full rounded-lg border border-slate-200 p-2.5 text-xs focus:outline-none focus:border-brand-red font-semibold"
           />
         </div>
 
@@ -213,7 +213,7 @@ export default function RequestManagement() {
                     <td className="p-4 pr-6 text-right">
                       <Link
                         to={`/blood-bank-admin/requests/${req.id}`}
-                        className="rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 transition text-xxs font-extrabold cursor-pointer"
+                        className="rounded-lg bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 px-3 py-1.5 transition text-xxs font-extrabold cursor-pointer"
                       >
                         Manage
                       </Link>

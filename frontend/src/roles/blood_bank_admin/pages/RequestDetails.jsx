@@ -99,12 +99,6 @@ export default function RequestDetails() {
         <div className="rounded-lg bg-rose-50 p-4 text-xs font-semibold text-rose-800 border border-rose-100">
           ⚠️ {error || 'Request details not found.'}
         </div>
-        <button
-          onClick={() => navigate('/blood-bank-admin/requests')}
-          className="mt-4 inline-flex items-center text-xs font-bold text-slate-500 hover:text-slate-800 transition"
-        >
-          ← Back to Requests
-        </button>
       </div>
     );
   }
@@ -115,12 +109,6 @@ export default function RequestDetails() {
   return (
     <div className="page-stack max-w-3xl">
       <div>
-        <button
-          onClick={() => navigate('/blood-bank-admin/requests')}
-          className="mb-3 flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer select-none"
-        >
-          ← Back to Requests
-        </button>
         <PageHeader
           title={`Request for ${request.patient_name}`}
           description="Detailed overview of status and coordination logs."

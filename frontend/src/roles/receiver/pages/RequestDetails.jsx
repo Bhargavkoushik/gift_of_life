@@ -140,12 +140,6 @@ export default function RequestDetails() {
 
   return (
     <div className="page-stack max-w-4xl relative">
-      <div className="flex items-center gap-2 text-xxs font-bold text-slate-400 uppercase tracking-wider mb-2">
-        <Link to={backLink} className="hover:text-brand-red">{backLabel}</Link>
-        <span>/</span>
-        <span className="text-slate-600">Details</span>
-      </div>
-
       <PageHeader
         title={`Request for Patient: ${request.patient_name}`}
         description="Review your blood request details and donation progress."

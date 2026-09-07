@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.jpeg';
 import { useAuth } from '../context/AuthContext';
 import MedicalBackground from '../components/MedicalBackground';
+import BackButton from '../components/BackButton';
 import { getAdminNotifications } from '../services/adminService';
 
 const adminLinks = [
@@ -400,6 +401,7 @@ export default function AdminLayout() {
 
         {/* MAIN PANEL CONTENT */}
         <main className="content-area page-shell">
+          <BackButton />
           <Outlet />
         </main>
       </div>

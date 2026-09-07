@@ -1,39 +1,40 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 
 export default function BackButton() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [hasPrev, setHasPrev] = useState(false);
 
-  useEffect(() => {
-    try {
-      const historyStr = sessionStorage.getItem('donorHistory');
-      if (historyStr) {
-        const history = JSON.parse(historyStr);
-        const currentIndex = history.lastIndexOf(location.pathname);
-        if (currentIndex > 0 && history[currentIndex - 1]?.startsWith('/donor')) {
-          setHasPrev(true);
-        } else {
-          setHasPrev(false);
-        }
-      } else {
-        setHasPrev(false);
-      }
-    } catch (e) {
-      setHasPrev(false);
-    }
-  }, [location.pathname]);
+  // Hide the back button on the dashboard for the current workspace
+  const isDashboard = 
+    location.pathname === '/donor/dashboard' || 
+    location.pathname === '/receiver/dashboard' || 
+    location.pathname === '/coordinator/dashboard' || 
+    location.pathname === '/blood-bank-admin/dashboard' ||
+    location.pathname === '/super-admin/dashboard';
 
-  if (location.pathname === '/donor/dashboard') {
+  if (isDashboard) {
     return null;
   }
 
   const handleBack = () => {
-    if (hasPrev) {
+    const hasHistory = window.history.state && window.history.state.idx > 0;
+    if (hasHistory) {
       navigate(-1);
     } else {
-      navigate('/donor/dashboard');
+      // Fallback depending on prefix path
+      if (location.pathname.startsWith('/blood-bank-admin')) {
+        navigate('/blood-bank-admin/dashboard');
+      } else if (location.pathname.startsWith('/super-admin')) {
+        navigate('/super-admin/dashboard');
+      } else if (location.pathname.startsWith('/donor')) {
+        navigate('/donor/dashboard');
+      } else if (location.pathname.startsWith('/receiver')) {
+        navigate('/receiver/dashboard');
+      } else if (location.pathname.startsWith('/coordinator')) {
+        navigate('/coordinator/dashboard');
+      } else {
+        navigate('/');
+      }
     }
   };
 
@@ -43,7 +44,7 @@ export default function BackButton() {
       aria-label="Go back"
       className="inline-flex items-center text-xs font-bold text-slate-500 hover:text-brand-red transition cursor-pointer select-none mb-4 focus:outline-none"
     >
-      ← {hasPrev ? 'Back' : 'Back to Dashboard'}
+      ← Back
     </button>
   );
 }

@@ -60,6 +60,8 @@ import BloodBankAdminDashboard from '../roles/blood_bank_admin/pages/BloodBankAd
 import BloodBankAdminRequestManagement from '../roles/blood_bank_admin/pages/RequestManagement';
 import BloodBankAdminCreateRequest from '../roles/blood_bank_admin/pages/CreateRequest';
 import BloodBankAdminRequestDetails from '../roles/blood_bank_admin/pages/RequestDetails';
+import BloodBankAdminDonors from '../roles/blood_bank_admin/pages/Donors';
+import BloodBankAdminCoordinators from '../roles/blood_bank_admin/pages/Coordinators';
 
 function AppRoutes() {
   return (
@@ -79,6 +81,7 @@ function AppRoutes() {
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="accept-invite" element={<AcceptInvitation />} />
+            <Route path="accept-invitation" element={<AcceptInvitation />} />
           </Route>
 
           <Route
@@ -116,11 +119,12 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           >
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DonorDashboard />} />
-            <Route path="profile" element={<DonorProfile />} />
             <Route path="requests" element={<DonorRequests />} />
             <Route path="donation-history" element={<DonorDonationHistory />} />
             <Route path="notifications" element={<DonorNotifications />} />
+            <Route path="profile" element={<DonorProfile />} />
           </Route>
 
           <Route
@@ -131,11 +135,14 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           >
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<ReceiverDashboard />} />
             <Route path="request-blood" element={<RequestBlood />} />
+            <Route path="requests/create" element={<RequestBlood />} />
             <Route path="requests" element={<MyRequests />} />
             <Route path="requests/:id" element={<ReceiverRequestDetails />} />
             <Route path="history" element={<RequestHistory />} />
+            <Route path="requests/history" element={<RequestHistory />} />
             <Route path="notifications" element={<ReceiverNotifications />} />
             <Route path="profile" element={<ReceiverProfile />} />
           </Route>
@@ -173,6 +180,8 @@ function AppRoutes() {
             <Route path="requests" element={<BloodBankAdminRequestManagement />} />
             <Route path="requests/create" element={<BloodBankAdminCreateRequest />} />
             <Route path="requests/:id" element={<BloodBankAdminRequestDetails />} />
+            <Route path="donors" element={<BloodBankAdminDonors />} />
+            <Route path="coordinators" element={<BloodBankAdminCoordinators />} />
             <Route path="profile" element={<ProfileAccount />} />
           </Route>
 

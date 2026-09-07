@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, NavLink, Link } from 'react-router-dom';
 import MedicalBackground from '../components/MedicalBackground';
+import BackButton from '../components/BackButton';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.jpeg';
 
@@ -273,6 +274,7 @@ export default function ReceiverLayout() {
 
         {/* CONTENT MAIN OUTLET */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+          <BackButton />
           <Outlet context={{ setActiveSourceOverride }} />
         </main>
       </div>

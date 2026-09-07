@@ -19,3 +19,13 @@ export const cancelRequest = async (id) => {
   const response = await api.patch(`/blood-bank-admin/requests/${id}/cancel`);
   return response.data.request;
 };
+
+export const getDonors = async (params = {}) => {
+  const response = await api.get('/blood-bank-admin/donors', { params });
+  return response.data.donors;
+};
+
+export const getCoordinators = async () => {
+  const response = await api.get('/blood-bank-admin/coordinators');
+  return response.data.coordinators;
+};
