@@ -5,8 +5,10 @@ import pool from '../../database/connection.js';
 import * as authRepository from './repository.js';
 import * as notificationService from '../../services/notificationService.js';
 import * as adminRepository from '../admin/repository.js';
+import { arePhonesEqual } from '../../utils/phone.js';
 
 const SALT_ROUNDS = 10;
+
 
 export async function registerUser({ name, email, phone, password }) {
   // Check if email or phone already exists
@@ -65,14 +67,16 @@ export async function loginUser({ email, password }) {
   // Update last login
   await authRepository.updateLastLogin(user.id);
 
-  // Audit log for Admin logins
-  if (roles.includes('ADMIN')) {
+  // Audit log for privileged staff logins (SUPER_ADMIN, ADMIN, COORDINATOR, BLOOD_BANK_ADMIN)
+  const isPrivilegedStaff = roles.some(r => ['SUPER_ADMIN', 'ADMIN', 'COORDINATOR', 'BLOOD_BANK_ADMIN'].includes(r));
+  if (isPrivilegedStaff) {
     await pool.query(
       `INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata)
        VALUES ($1, $2, 'USER', $1, $3)`,
-      [user.id, isFirstLogin ? 'ADMIN_FIRST_LOGIN' : 'ADMIN_LOGIN', JSON.stringify({ email: user.email })]
+      [user.id, isFirstLogin ? 'STAFF_FIRST_LOGIN' : 'STAFF_LOGIN', JSON.stringify({ email: user.email, roles })]
     );
   }
+
 
   // Generate JWT token
   const secret = process.env.JWT_SECRET;
@@ -162,13 +166,21 @@ export async function becomeDonor(userId, donorData) {
     // Add Donor role
     await authRepository.addRole(userId, 'DONOR', client);
 
-    // Create profile
+    // Validate secondary phone if provided; do NOT default to primary phone
+    const secondaryPhone = donorData.phone && donorData.phone.trim() ? donorData.phone.trim() : null;
+    if (secondaryPhone && arePhonesEqual(secondaryPhone, user.phone)) {
+      const err = new Error('Secondary phone number cannot be the same as your primary phone number.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // Create profile with null secondary phone if not explicitly provided
     await authRepository.createDonorProfile(
       userId,
       donorData.blood_group_id,
       donorData.date_of_birth,
       donorData.gender,
-      donorData.phone || user.phone, // fallback to main user phone if none provided
+      secondaryPhone,
       donorData.address,
       donorData.area,
       donorData.district,
@@ -268,8 +280,8 @@ export async function becomeReceiver(userId, receiverData) {
 
 export async function requestPasswordReset({ identifier }) {
   const user = await authRepository.getUserByIdentifier(identifier);
-  if (!user) {
-    // Avoid revealing user existence
+  if (!user || user.status === 'SUSPENDED' || user.status === 'DEACTIVATED') {
+    // Avoid revealing user existence or deactivation state
     return { message: 'If an account exists with this information, recovery instructions will be sent.' };
   }
 
@@ -318,9 +330,19 @@ export async function resetUserPassword({ token, password }) {
   // Update password in DB
   await authRepository.updateUserPassword(activeToken.user_id, passwordHash);
 
+  // Invalidate current JWT sessions across all devices
+  await authRepository.incrementTokenVersion(activeToken.user_id);
+
   // Invalidate this token and other reset tokens for safety
   await authRepository.invalidateUserResetTokens(activeToken.user_id);
   await authRepository.markResetTokenAsUsed(activeToken.id);
+
+  // Audit logging for password reset completion
+  await pool.query(
+    `INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata)
+     VALUES ($1, 'PASSWORD_RESET_COMPLETED', 'USER', $1, $2)`,
+    [activeToken.user_id, JSON.stringify({ timestamp: new Date().toISOString() })]
+  );
 
   return { message: 'Password reset successfully' };
 }
@@ -358,13 +380,14 @@ export async function changeUserPassword(userId, { currentPassword, newPassword 
 
   // Audit logging
   const roles = await authRepository.getUserRoles(userId);
-  if (roles.includes('ADMIN')) {
+  const isPrivileged = roles.some(r => ['SUPER_ADMIN', 'ADMIN', 'COORDINATOR', 'BLOOD_BANK_ADMIN'].includes(r));
+  if (isPrivileged) {
     await adminRepository.writeAuditLog(
       userId,
-      'ADMIN_PASSWORD_CHANGED',
+      'PASSWORD_CHANGED',
       'USER',
       userId,
-      { timestamp: new Date().toISOString() }
+      { timestamp: new Date().toISOString(), roles }
     );
   }
 
@@ -383,18 +406,20 @@ export async function updateUserProfile(userId, { name, phone }) {
 
   // Audit logging
   const roles = await authRepository.getUserRoles(userId);
-  if (roles.includes('ADMIN')) {
+  const isPrivileged = roles.some(r => ['SUPER_ADMIN', 'ADMIN', 'COORDINATOR', 'BLOOD_BANK_ADMIN'].includes(r));
+  if (isPrivileged) {
     await adminRepository.writeAuditLog(
       userId,
-      'ADMIN_PROFILE_UPDATED',
+      'PROFILE_UPDATED',
       'USER',
       userId,
-      { name, phone }
+      { name, phone, roles }
     );
   }
 
   return { message: 'Profile updated successfully' };
 }
+
 
 export async function validateInvitationToken(token) {
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -527,17 +552,165 @@ export async function acceptInvitationAndSubmitVerification({ token, password, p
 }
 
 export async function logoutUser(userId) {
+  // Invalidate current JWT sessions across all devices
+  await authRepository.incrementTokenVersion(userId);
+
   const roles = await authRepository.getUserRoles(userId);
-  if (roles.includes('ADMIN')) {
+  const isPrivileged = roles.some(r => ['SUPER_ADMIN', 'ADMIN', 'COORDINATOR', 'BLOOD_BANK_ADMIN'].includes(r));
+  if (isPrivileged) {
     await adminRepository.writeAuditLog(
       userId,
-      'ADMIN_LOGOUT',
+      'STAFF_LOGOUT',
       'USER',
       userId,
-      { timestamp: new Date().toISOString() }
+      { timestamp: new Date().toISOString(), roles }
     );
   }
 }
+
+export async function deleteUserAccount(userId, { password, reason, confirmText }) {
+  if (confirmText !== 'DELETE') {
+    const err = new Error('Confirmation text must be DELETE');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 1. Verify user exists and is currently active
+  const user = await authRepository.getUserById(userId);
+  if (!user || user.status !== 'ACTIVE') {
+    const err = new Error('Active user account not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // 2. Role authorization: ONLY DONOR and RECEIVER permitted
+  const roles = await authRepository.getUserRoles(userId);
+  const isPrivileged = roles.some(r => ['SUPER_ADMIN', 'ADMIN', 'COORDINATOR', 'BLOOD_BANK_ADMIN'].includes(r));
+  if (isPrivileged) {
+    const err = new Error('Staff and administrator accounts cannot be deleted through self-service. Please contact Trust Administration.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const isDonorOrReceiver = roles.includes('DONOR') || roles.includes('RECEIVER');
+  if (!isDonorOrReceiver) {
+    const err = new Error('Only registered Donor or Receiver accounts are eligible for self-service account deletion.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // 3. Verify current password
+  const hash = await authRepository.getUserPasswordHash(userId);
+  const passwordMatch = await bcrypt.compare(password, hash);
+  if (!passwordMatch) {
+    const err = new Error('Incorrect current password. Identity verification failed.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 4. Check for active operational commitments
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    if (roles.includes('DONOR')) {
+      const activePledgesRes = await client.query(
+        `SELECT COUNT(*) as count 
+         FROM donor_responses dr
+         JOIN blood_requests br ON dr.request_id = br.id
+         JOIN donor_profiles dp ON dr.donor_id = dp.id
+         WHERE dp.user_id = $1 
+            AND dr.response_status IN ('ACCEPTED', 'PENDING')
+            AND br.status NOT IN ('FULFILLED', 'CANCELLED', 'REJECTED', 'NO_DONOR_FOUND')`,
+        [userId]
+      );
+      if (parseInt(activePledgesRes.rows[0].count, 10) > 0) {
+        const err = new Error('Cannot delete account while you have active or pending blood request responses. Please coordinate with the assigned coordinator or wait until the request is closed.');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const scheduledDonationsRes = await client.query(
+        `SELECT COUNT(*) as count 
+         FROM donations d
+         JOIN donor_profiles dp ON d.donor_id = dp.id
+         WHERE dp.user_id = $1 AND d.status = 'SCHEDULED'`,
+        [userId]
+      );
+      if (parseInt(scheduledDonationsRes.rows[0].count, 10) > 0) {
+        const err = new Error('Cannot delete account while you have scheduled donations pending completion. Please contact your coordinator.');
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
+    if (roles.includes('RECEIVER')) {
+      const activeRequestsRes = await client.query(
+        `SELECT COUNT(*) as count 
+         FROM blood_requests 
+         WHERE created_by_user_id = $1 
+           AND status NOT IN ('FULFILLED', 'CANCELLED', 'REJECTED', 'NO_DONOR_FOUND')`,
+        [userId]
+      );
+      if (parseInt(activeRequestsRes.rows[0].count, 10) > 0) {
+        const err = new Error('Cannot delete account while you have active ongoing blood requests. Please cancel or fulfill your open requests first.');
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
+    // 5. Safely deactivate account and invalidate all sessions
+    await client.query(
+      `UPDATE users 
+       SET status = 'DEACTIVATED', 
+           deleted_at = CURRENT_TIMESTAMP, 
+           deletion_reason = $1, 
+           token_version = token_version + 1, 
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2`,
+      [reason.trim(), userId]
+    );
+
+    if (roles.includes('DONOR')) {
+      await client.query(
+        `UPDATE donor_profiles 
+         SET availability_status = 'NOT_AVAILABLE', updated_at = CURRENT_TIMESTAMP 
+         WHERE user_id = $1`,
+        [userId]
+      );
+    }
+
+    await client.query(
+      `UPDATE password_reset_tokens 
+       SET used_at = CURRENT_TIMESTAMP 
+       WHERE user_id = $1 AND used_at IS NULL`,
+      [userId]
+    );
+    await client.query(
+      `DELETE FROM user_verifications WHERE user_id = $1`,
+      [userId]
+    );
+
+    // 6. Audit logging (never logging the password)
+    await client.query(
+      `INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, 'ACCOUNT_DEACTIVATED_BY_USER', 'USER', $1, $2)`,
+      [userId, JSON.stringify({ reason: reason.trim(), roles, timestamp: new Date().toISOString() })]
+    );
+
+    await client.query('COMMIT');
+    return {
+      success: true,
+      message: 'Your account has been successfully deleted and deactivated. All active sessions have been terminated.'
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 
 export async function sendVerificationCode(userId, method) {
   if (!['EMAIL', 'SMS'].includes(method)) {

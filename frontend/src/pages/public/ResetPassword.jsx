@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import PageHeader from '../../components/PageHeader';
+import PasswordRequirementsRuleList, { evalPasswordRules } from '../../components/PasswordRequirementsRuleList';
 import * as authService from '../../services/authService';
 
 const resetPasswordSchema = z.object({
@@ -21,7 +22,8 @@ const resetPasswordSchema = z.object({
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') || '';
+  const urlToken = searchParams.get('token') || '';
+  const [tokenInput, setTokenInput] = useState(urlToken);
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -39,12 +41,8 @@ export default function ResetPassword() {
   const passwordValue = watch('password') || '';
   const confirmPasswordValue = watch('confirmPassword') || '';
 
-  // Password rules validation states
-  const hasMinLength = passwordValue.length >= 8;
-  const hasUppercase = /[A-Z]/.test(passwordValue);
-  const hasLowercase = /[a-z]/.test(passwordValue);
-  const hasNumber = /[0-9]/.test(passwordValue);
-  const hasSpecial = /[^a-zA-Z0-9]/.test(passwordValue);
+  // Password rules validation states via shared rule evaluator
+  const { isValid: isPasswordValid } = evalPasswordRules(passwordValue);
 
   // Confirm password matching evaluation states
   const showConfirmFeedback = confirmPasswordValue.length > 0;
@@ -54,13 +52,14 @@ export default function ResetPassword() {
     setServerError(null);
     setSuccess(false);
 
-    if (!token) {
-      setServerError('Reset token is missing or invalid. Please check your recovery link.');
+    const finalToken = tokenInput.trim();
+    if (!finalToken) {
+      setServerError('Reset token is missing. Please enter or paste the recovery token from your email or SMS.');
       return;
     }
 
     try {
-      await authService.resetPassword(token, data.password, data.confirmPassword);
+      await authService.resetPassword(finalToken, data.password, data.confirmPassword);
       setSuccess(true);
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Reset failed';
@@ -102,6 +101,24 @@ export default function ResetPassword() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                Reset Token / Recovery Code
+              </label>
+              <input
+                type="text"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="Enter or paste recovery token"
+                className="w-full rounded-lg border border-slate-200 p-2.5 font-mono text-sm focus:border-brand-red focus:outline-none"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                {urlToken
+                  ? 'Token auto-populated from link. You may also paste an SMS token.'
+                  : 'Enter the token received via SMS or email.'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 New Password
               </label>
               <div className="relative">
@@ -120,30 +137,8 @@ export default function ResetPassword() {
                 </button>
               </div>
 
-              {/* Password complexity visual list */}
-              <div className="mt-2.5 space-y-1 text-[11px] select-none pl-1">
-                <div className="text-slate-500 font-semibold mb-1">Password must contain:</div>
-                <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                  <span>{hasMinLength ? '✓' : '✗'}</span>
-                  <span>At least 8 characters</span>
-                </div>
-                <div className={`flex items-center gap-1.5 ${hasUppercase ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                  <span>{hasUppercase ? '✓' : '✗'}</span>
-                  <span>One uppercase letter</span>
-                </div>
-                <div className={`flex items-center gap-1.5 ${hasLowercase ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                  <span>{hasLowercase ? '✓' : '✗'}</span>
-                  <span>One lowercase letter</span>
-                </div>
-                <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                  <span>{hasNumber ? '✓' : '✗'}</span>
-                  <span>One number</span>
-                </div>
-                <div className={`flex items-center gap-1.5 ${hasSpecial ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                  <span>{hasSpecial ? '✓' : '✗'}</span>
-                  <span>One special character</span>
-                </div>
-              </div>
+              {/* Shared password complexity visual list */}
+              <PasswordRequirementsRuleList password={passwordValue} title="Password must contain:" />
 
               {errors.password && (
                 <p className="mt-1.5 text-xs text-rose-600 font-medium">{errors.password.message}</p>
@@ -181,8 +176,8 @@ export default function ResetPassword() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 cursor-pointer"
+              disabled={isSubmitting || !tokenInput.trim() || !isPasswordValid || !isMatched}
+              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSubmitting ? 'Resetting Password...' : 'Reset Password'}
             </button>

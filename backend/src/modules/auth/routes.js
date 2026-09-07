@@ -18,6 +18,18 @@ const recoveryLimiter = createRateLimiter({
   message: 'Too many recovery requests, please try again in an hour.'
 });
 
+const changePasswordLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: 'Too many password change attempts, please try again in 15 minutes.'
+});
+
+const otpSendLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: 'Too many verification code requests, please try again in 15 minutes.'
+});
+
 router.get('/setup-super-admin/status', authController.getSetupStatus);
 router.post('/setup-super-admin', authController.setupSuperAdmin);
 router.post('/google-form-callback', authController.googleFormCallback);
@@ -26,14 +38,15 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.get('/config', authController.getAuthConfig);
 router.get('/me', authMiddleware, authController.me);
-router.post('/verification/send', authMiddleware, authController.sendVerificationCode);
+router.post('/verification/send', authMiddleware, otpSendLimiter, authController.sendVerificationCode);
 router.post('/verification/verify', authMiddleware, authController.verifyCode);
 router.post('/roles/donor', authMiddleware, authController.becomeDonor);
 router.post('/roles/receiver', authMiddleware, authController.becomeReceiver);
 
 router.post('/forgot-password', recoveryLimiter, authController.forgotPassword);
 router.post('/reset-password', authLimiter, authController.resetPassword);
-router.post('/change-password', authMiddleware, authController.changePassword);
+router.post('/change-password', authMiddleware, changePasswordLimiter, authController.changePassword);
+router.post('/delete-account', authMiddleware, changePasswordLimiter, authController.deleteAccount);
 router.put('/profile', authMiddleware, authController.updateProfile);
 router.post('/logout', authMiddleware, authController.logout);
 

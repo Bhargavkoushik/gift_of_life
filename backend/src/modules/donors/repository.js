@@ -1,4 +1,5 @@
 import pool from '../../database/connection.js';
+import { arePhonesEqual } from '../../utils/phone.js';
 
 export async function getDonorProfileByUserId(userId) {
   const result = await pool.query(
@@ -13,26 +14,37 @@ export async function getDonorProfileByUserId(userId) {
 }
 
 export async function updateDonorProfile(userId, data) {
-  const { name, blood_group_id, date_of_birth, gender, phone, address, area, district, state, pincode } = data;
+  const { name, date_of_birth, gender, phone, address, area, district, state, pincode } = data;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
+    // Check primary phone from users table to prevent equality with secondary phone
+    const userRes = await client.query('SELECT phone FROM users WHERE id = $1', [userId]);
+    const primaryPhone = userRes.rows[0]?.phone;
+    const secondaryPhone = phone && phone.trim() ? phone.trim() : null;
+
+    if (secondaryPhone && arePhonesEqual(secondaryPhone, primaryPhone)) {
+      const err = new Error('Secondary phone number cannot be the same as your primary phone number.');
+      err.statusCode = 400;
+      throw err;
+    }
+
     // Update core name in users
     await client.query(
       `UPDATE users SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
       [name, userId]
     );
 
-    // Update details in donor_profiles
+    // Update details in donor_profiles (EXCLUDING blood_group_id to enforce clinical data immutability)
     const result = await client.query(
       `UPDATE donor_profiles
-       SET blood_group_id = $1, date_of_birth = $2, gender = $3, phone = $4,
-           address = $5, area = $6, district = $7, state = $8, pincode = $9,
+       SET date_of_birth = $1, gender = $2, phone = $3,
+           address = $4, area = $5, district = $6, state = $7, pincode = $8,
            updated_at = CURRENT_TIMESTAMP
-       WHERE user_id = $10
+       WHERE user_id = $9
        RETURNING *`,
-      [blood_group_id, date_of_birth, gender, phone || null, address, area, district, state, pincode, userId]
+      [date_of_birth, gender, secondaryPhone, address, area, district, state, pincode, userId]
     );
 
     await client.query('COMMIT');
@@ -44,6 +56,7 @@ export async function updateDonorProfile(userId, data) {
     client.release();
   }
 }
+
 
 export async function getDonorAvailability(userId) {
   const result = await pool.query(

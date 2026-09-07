@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import PageHeader from '../../components/PageHeader';
 import MedicalBackground from '../../components/MedicalBackground';
+import SignOutModal from '../../components/SignOutModal';
+import { arePhonesEqual } from '../../utils/phone';
 
 const donorSchema = z.object({
   blood_group_id: z.coerce.number().int().positive('Please select a blood group'),
@@ -49,6 +51,7 @@ export default function SelectRole() {
   const [searchParams] = useSearchParams();
   const [activeForm, setActiveForm] = useState(null); // 'donor' or 'receiver'
   const [errorMsg, setErrorMsg] = useState(null);
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
 
   const onboardParam = searchParams.get('onboard');
 
@@ -71,7 +74,7 @@ export default function SelectRole() {
 
   const donorForm = useForm({
     resolver: zodResolver(donorSchema),
-    defaultValues: { phone: user?.phone || '' }
+    defaultValues: { phone: '' }
   });
 
   const receiverForm = useForm({
@@ -94,8 +97,17 @@ export default function SelectRole() {
 
   const onDonorSubmit = async (data) => {
     setErrorMsg(null);
+    if (data.phone && data.phone.trim()) {
+      if (arePhonesEqual(user?.phone, data.phone)) {
+        setErrorMsg('Secondary phone number cannot be the same as your primary phone number.');
+        return;
+      }
+    }
     try {
-      await promoteToDonor(data);
+      await promoteToDonor({
+        ...data,
+        phone: data.phone && data.phone.trim() ? data.phone.trim() : null
+      });
       handleSelectRole('DONOR');
     } catch (err) {
       setErrorMsg(err.message || 'Failed to register as donor');
@@ -129,7 +141,7 @@ export default function SelectRole() {
           description="Manage your account profile workspaces or register for role access."
         />
         <button
-          onClick={handleLogout}
+          onClick={() => setIsSignOutModalOpen(true)}
           className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 cursor-pointer"
         >
           Sign Out
@@ -353,7 +365,7 @@ export default function SelectRole() {
               </label>
               <input
                 type="tel"
-                placeholder={user?.phone}
+                placeholder="Optional alternative contact number"
                 className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
                 {...donorForm.register('phone')}
               />
@@ -616,6 +628,13 @@ export default function SelectRole() {
           </div>
         </div>
       )}
+
+      {/* SIGN OUT CONFIRMATION MODAL */}
+      <SignOutModal
+        isOpen={isSignOutModalOpen}
+        onClose={() => setIsSignOutModalOpen(false)}
+        onConfirm={handleLogout}
+      />
     </div>
   </div>
   );

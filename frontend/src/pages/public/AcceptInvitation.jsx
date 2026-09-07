@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
+import PasswordRequirementsRuleList, { evalPasswordRules } from '../../components/PasswordRequirementsRuleList';
 import * as authService from '../../services/authService';
 
 export default function AcceptInvitation() {
@@ -16,9 +17,16 @@ export default function AcceptInvitation() {
   // Form states
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Password rules validation states via shared evaluator
+  const { isValid: isPasswordValid } = evalPasswordRules(password);
+  const showConfirmFeedback = confirmPassword.length > 0;
+  const isMatched = showConfirmFeedback && (password === confirmPassword);
 
   useEffect(() => {
     if (!token) {
@@ -52,10 +60,8 @@ export default function AcceptInvitation() {
       return;
     }
 
-    // Strong password policy
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(password)) {
-      setErrorMsg('Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.');
+    if (!isPasswordValid) {
+      setErrorMsg('Please ensure all password requirements are satisfied.');
       return;
     }
 
@@ -134,30 +140,56 @@ export default function AcceptInvitation() {
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 Password
               </label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={submitting}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Set your account password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={submitting}
+                  className="w-full rounded-lg border border-slate-200 p-2.5 pr-10 text-sm focus:border-brand-red focus:outline-none disabled:bg-slate-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none select-none"
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+
+              {/* Shared password complexity visual list */}
+              <PasswordRequirementsRuleList password={password} title="Password must contain:" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 Confirm Password
               </label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={submitting}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-brand-red focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={submitting}
+                  className="w-full rounded-lg border border-slate-200 p-2.5 pr-10 text-sm focus:border-brand-red focus:outline-none disabled:bg-slate-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none select-none"
+                >
+                  {showConfirmPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              {showConfirmFeedback && (
+                <p className={`mt-1 text-xs font-semibold ${isMatched ? 'text-green-600 font-bold' : 'text-red-500'}`}>
+                  {isMatched ? 'Passwords match ✓' : 'Passwords do not match'}
+                </p>
+              )}
             </div>
 
             <div>
@@ -206,8 +238,8 @@ export default function AcceptInvitation() {
 
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 cursor-pointer"
+              disabled={submitting || !isPasswordValid || !isMatched}
+              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 disabled:cursor-not-allowed cursor-pointer"
             >
               {submitting ? 'Submitting details...' : 'Submit Verification & Register'}
             </button>

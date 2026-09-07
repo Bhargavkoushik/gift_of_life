@@ -1,4 +1,5 @@
 import pool from '../../database/connection.js';
+import { arePhonesEqual } from '../../utils/phone.js';
 
 export async function getReceiverProfileByUserId(userId) {
   const res = await pool.query(
@@ -12,15 +13,27 @@ export async function getReceiverProfileByUserId(userId) {
 }
 
 export async function updateReceiverProfile(userId, data) {
+  // Query primary phone from users table
+  const userRes = await pool.query('SELECT phone FROM users WHERE id = $1', [userId]);
+  const primaryPhone = userRes.rows[0]?.phone;
+  const secondaryPhone = data.secondary_phone && data.secondary_phone.trim() ? data.secondary_phone.trim() : null;
+
+  if (secondaryPhone && arePhonesEqual(secondaryPhone, primaryPhone)) {
+    const err = new Error('Secondary phone number cannot be the same as your primary phone number.');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const res = await pool.query(
     `UPDATE receiver_profiles 
      SET address = $1, area = $2, district = $3, state = $4, pincode = $5, receiver_type = $6, secondary_phone = $7, updated_at = CURRENT_TIMESTAMP
      WHERE user_id = $8
      RETURNING *`,
-    [data.address, data.area, data.district, data.state, data.pincode, data.receiver_type, data.secondary_phone || null, userId]
+    [data.address, data.area, data.district, data.state, data.pincode, data.receiver_type, secondaryPhone, userId]
   );
   return res.rows[0];
 }
+
 
 export async function getBloodGroupIdByCode(code) {
   const res = await pool.query(

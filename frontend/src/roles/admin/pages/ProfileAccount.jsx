@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import PageHeader from '../../../components/PageHeader';
+import PasswordRequirementsRuleList, { evalPasswordRules } from '../../../components/PasswordRequirementsRuleList';
 import * as authService from '../../../services/authService';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -55,12 +56,8 @@ export default function ProfileAccount() {
   const newPasswordValue = watch('newPassword') || '';
   const confirmPasswordValue = watch('confirmPassword') || '';
 
-  // Password rules validation states
-  const hasMinLength = newPasswordValue.length >= 8;
-  const hasUppercase = /[A-Z]/.test(newPasswordValue);
-  const hasLowercase = /[a-z]/.test(newPasswordValue);
-  const hasNumber = /[0-9]/.test(newPasswordValue);
-  const hasSpecial = /[^a-zA-Z0-9]/.test(newPasswordValue);
+  // Password rules validation states via shared evaluator
+  const { isValid: isPasswordValid } = evalPasswordRules(newPasswordValue);
 
   // Confirm password matching states
   const showConfirmFeedback = confirmPasswordValue.length > 0;
@@ -347,29 +344,8 @@ export default function ProfileAccount() {
                   </button>
                 </div>
 
-                <div className="space-y-1 text-[10px] select-none pl-1 mt-1">
-                  <div className="text-slate-400 font-bold mb-1">New password must contain:</div>
-                  <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                    <span>{hasMinLength ? '✓' : '✗'}</span>
-                    <span>At least 8 characters</span>
-                  </div>
-                  <div className={`flex items-center gap-1.5 ${hasUppercase ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                    <span>{hasUppercase ? '✓' : '✗'}</span>
-                    <span>One uppercase letter</span>
-                  </div>
-                  <div className={`flex items-center gap-1.5 ${hasLowercase ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                    <span>{hasLowercase ? '✓' : '✗'}</span>
-                    <span>One lowercase letter</span>
-                  </div>
-                  <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                    <span>{hasNumber ? '✓' : '✗'}</span>
-                    <span>One number</span>
-                  </div>
-                  <div className={`flex items-center gap-1.5 ${hasSpecial ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                    <span>{hasSpecial ? '✓' : '✗'}</span>
-                    <span>One special character</span>
-                  </div>
-                </div>
+                {/* Shared password complexity visual list */}
+                <PasswordRequirementsRuleList password={newPasswordValue} title="New password must contain:" />
 
                 {errors.newPassword && (
                   <p className="text-rose-600 font-bold text-[10px] mt-1">{errors.newPassword.message}</p>
@@ -406,8 +382,8 @@ export default function ProfileAccount() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-bold px-4 py-2.5 text-xs transition cursor-pointer select-none disabled:bg-slate-350"
+                disabled={isSubmitting || !isPasswordValid || !isMatched}
+                className="rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-bold px-4 py-2.5 text-xs transition cursor-pointer select-none disabled:bg-slate-350 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Updating Credentials...' : 'Change Password'}
               </button>
