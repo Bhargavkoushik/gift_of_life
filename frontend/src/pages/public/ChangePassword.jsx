@@ -1,22 +1,15 @@
-import { useNavigate } from 'react-router-dom';
+import BackButton from '../../components/BackButton';
 import PageHeader from '../../components/PageHeader';
 import MedicalBackground from '../../components/MedicalBackground';
 import ChangePasswordForm from '../../components/ChangePasswordForm';
 
 export default function ChangePassword() {
-  const navigate = useNavigate();
-
   return (
     <div className="relative min-h-screen bg-slate-50 overflow-hidden py-10 px-4">
       <MedicalBackground variant="simple" />
       <div className="relative z-10 page-stack max-w-md mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <button
-            onClick={() => navigate('/select-role')}
-            className="flex items-center text-sm font-semibold text-brand-red hover:text-brand-red-dark transition cursor-pointer"
-          >
-            ← Back to Account
-          </button>
+        <div className="mb-2">
+          <BackButton />
         </div>
 
         <PageHeader

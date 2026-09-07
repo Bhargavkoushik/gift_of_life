@@ -1,5 +1,5 @@
 import * as authService from './service.js';
-import { registerSchema, loginSchema, becomeDonorSchema, becomeReceiverSchema, becomeCoordinatorSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from './validation.js';
+import { registerSchema, loginSchema, becomeDonorSchema, becomeReceiverSchema, becomeCoordinatorSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema, acceptInvitationSchema, deleteAccountSchema } from './validation.js';
 import pool from '../../database/connection.js';
 import * as donorService from '../donors/service.js';
 import jwt from 'jsonwebtoken';
@@ -156,18 +156,39 @@ export async function validateInvitation(req, res, next) {
 
 export async function acceptInvitation(req, res, next) {
   try {
-    const { token, password, phone, employee_id, notes, id_card_image } = req.body;
-    if (!token || !password || !phone) {
-      return res.status(400).json({ message: 'Token, password, and phone are required' });
-    }
-    const result = await authService.acceptInvitationAndSubmitVerification({
-      token, password, phone, employee_id, notes, id_card_image
-    });
+    const validatedData = acceptInvitationSchema.parse(req.body);
+    const result = await authService.acceptInvitationAndSubmitVerification(validatedData);
     return res.status(200).json(result);
   } catch (error) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_INVITATION_DATA',
+        message: error.errors[0]?.message || 'Validation failed for invitation acceptance.',
+        errors: error.errors
+      });
+    }
     next(error);
   }
 }
+
+export async function deleteAccount(req, res, next) {
+  try {
+    const validatedData = deleteAccountSchema.parse(req.body);
+    const result = await authService.deleteUserAccount(req.user.id, validatedData);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_DELETION_DATA',
+        message: error.errors[0]?.message || 'Validation failed for account deletion.'
+      });
+    }
+    next(error);
+  }
+}
+
 
 export async function updateProfile(req, res, next) {
   try {

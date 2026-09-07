@@ -105,4 +105,9 @@ export const getAuthConfig = async () => {
   return response.data;
 };
 
+export const deleteAccount = async ({ password, reason, confirmText }) => {
+  const response = await api.post('/auth/delete-account', { password, reason, confirmText });
+  return response.data;
+};
+
 export default api;

@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import { useState, useEffect } from 'react';
+import PasswordRequirementsRuleList, { evalPasswordRules } from '../../components/PasswordRequirementsRuleList';
 import * as authService from '../../services/authService';
 
 const setupSchema = z.object({
@@ -64,11 +65,7 @@ export default function SetupSuperAdmin() {
   const confirmPasswordValue = watch('confirmPassword') || '';
 
   // Password rules validation states
-  const hasMinLength = passwordValue.length >= 8;
-  const hasUppercase = /[A-Z]/.test(passwordValue);
-  const hasLowercase = /[a-z]/.test(passwordValue);
-  const hasNumber = /[0-9]/.test(passwordValue);
-  const hasSpecial = /[^a-zA-Z0-9]/.test(passwordValue);
+  const { isValid: isPasswordValid } = evalPasswordRules(passwordValue);
 
   // Confirm password matching evaluation states
   const showConfirmFeedback = confirmPasswordValue.length > 0;
@@ -210,70 +207,49 @@ export default function SetupSuperAdmin() {
               <p className="mt-1 text-xs text-rose-600 font-medium">{errors.password.message}</p>
             )}
 
-            {/* Password Rules checklist */}
-            <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1 text-xxs font-medium text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <span className={hasMinLength ? 'text-emerald-600' : 'text-slate-350'}>{hasMinLength ? '✓' : '○'}</span>
-                <span className={hasMinLength ? 'text-slate-600 font-bold' : ''}>At least 8 characters</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className={hasUppercase ? 'text-emerald-600' : 'text-slate-350'}>{hasUppercase ? '✓' : '○'}</span>
-                <span className={hasUppercase ? 'text-slate-600 font-bold' : ''}>At least one uppercase letter</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className={hasLowercase ? 'text-emerald-600' : 'text-slate-350'}>{hasLowercase ? '✓' : '○'}</span>
-                <span className={hasLowercase ? 'text-slate-600 font-bold' : ''}>At least one lowercase letter</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className={hasNumber ? 'text-emerald-600' : 'text-slate-350'}>{hasNumber ? '✓' : '○'}</span>
-                <span className={hasNumber ? 'text-slate-600 font-bold' : ''}>At least one number</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className={hasSpecial ? 'text-emerald-600' : 'text-slate-350'}>{hasSpecial ? '✓' : '○'}</span>
-                <span className={hasSpecial ? 'text-slate-600 font-bold' : ''}>At least one special character</span>
-              </div>
-            </div>
+            {/* Password complexity visual list */}
+            <PasswordRequirementsRuleList password={passwordValue} title="Password must contain:" />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-              Confirm Password
-            </label>
-            <div className="relative">
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm Password"
-                className="w-full rounded-lg border border-slate-200 p-2.5 pr-10 text-sm focus:border-brand-red focus:outline-none"
-                {...register('confirmPassword')}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none select-none"
-              >
-                {showConfirmPassword ? 'Hide' : 'Show'}
-              </button>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm Password"
+                  className="w-full rounded-lg border border-slate-200 p-2.5 pr-10 text-sm focus:border-brand-red focus:outline-none"
+                  {...register('confirmPassword')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none select-none"
+                >
+                  {showConfirmPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p className="mt-1 text-xs text-rose-600 font-medium">{errors.confirmPassword.message}</p>
+              )}
+
+              {showConfirmFeedback && (
+                <p className={`mt-2 text-xxs font-bold uppercase tracking-wider ${isMatched ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {isMatched ? '✓ Passwords match' : '✗ Passwords do not match'}
+                </p>
+              )}
             </div>
-            {errors.confirmPassword && (
-              <p className="mt-1 text-xs text-rose-600 font-medium">{errors.confirmPassword.message}</p>
-            )}
 
-            {showConfirmFeedback && (
-              <p className={`mt-2 text-xxs font-bold uppercase tracking-wider ${isMatched ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {isMatched ? '✓ Passwords match' : '✗ Passwords do not match'}
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting || success}
-            className="w-full rounded-lg bg-brand-red py-3 text-xs font-bold text-white hover:bg-brand-red-dark transition cursor-pointer disabled:opacity-50"
-          >
-            {isSubmitting ? 'Configuring Super Admin...' : 'Establish Super Admin'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={isSubmitting || success || !isPasswordValid || !isMatched}
+              className="w-full rounded-lg bg-brand-red py-3 text-xs font-bold text-white hover:bg-brand-red-dark transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Configuring Super Admin...' : 'Establish Super Admin'}
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
   );
 }

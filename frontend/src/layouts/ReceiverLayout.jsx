@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, NavLink, Link } from 'react-router-dom';
 import MedicalBackground from '../components/MedicalBackground';
 import BackButton from '../components/BackButton';
+import SignOutModal from '../components/SignOutModal';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.jpeg';
 
@@ -12,6 +13,7 @@ const receiverLinks = [
   { to: '/receiver/history', label: 'Past Requests', icon: 'history' },
   { to: '/receiver/notifications', label: 'Notifications', icon: 'bell' },
   { to: '/receiver/profile', label: 'Profile', icon: 'profile' },
+  { to: '/change-password', label: 'Change Password', icon: 'key' },
 ];
 
 export default function ReceiverLayout() {
@@ -20,6 +22,9 @@ export default function ReceiverLayout() {
   const location = useLocation();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeSourceOverride, setActiveSourceOverride] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState(null);
 
   // Close mobile drawer on route navigation
   useEffect(() => {
@@ -58,9 +63,24 @@ export default function ReceiverLayout() {
     };
   }, [isDrawerOpen]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/', { replace: true });
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+    setLogoutError(null);
+  };
+
+  const handleConfirmLogout = async () => {
+    setLoggingOut(true);
+    setLogoutError(null);
+    try {
+      await logout(false);
+      setShowLogoutModal(false);
+      navigate('/', { replace: true });
+    } catch (err) {
+      console.error('Logout error:', err);
+      setLogoutError('Unable to sign out. Please try again.');
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const isLinkActive = (link) => {
@@ -118,6 +138,12 @@ export default function ReceiverLayout() {
         return (
           <svg className={`h-4.5 w-4.5 ${strokeColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        );
+      case 'key':
+        return (
+          <svg className={`h-4.5 w-4.5 ${strokeColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
           </svg>
         );
       default:
@@ -180,7 +206,7 @@ export default function ReceiverLayout() {
           </div>
 
           <button
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
             className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xxs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer text-left font-sans"
           >
             <svg className="h-4 w-4 stroke-rose-600" fill="none" viewBox="0 0 24 24" strokeWidth="2">
@@ -258,7 +284,7 @@ export default function ReceiverLayout() {
                 <button
                   onClick={() => {
                     setIsDrawerOpen(false);
-                    handleLogout();
+                    handleLogoutClick();
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xxs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer text-left font-sans"
                 >
@@ -278,6 +304,14 @@ export default function ReceiverLayout() {
           <Outlet context={{ setActiveSourceOverride }} />
         </main>
       </div>
+
+      <SignOutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+        loggingOut={loggingOut}
+        error={logoutError}
+      />
     </div>
   );
 }

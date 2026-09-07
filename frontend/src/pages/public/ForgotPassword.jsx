@@ -67,8 +67,16 @@ export default function ForgotPassword() {
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-4">
         {successMsg && (
-          <div className="rounded-lg bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 border border-emerald-100 leading-relaxed select-none">
-            ✓ {successMsg}
+          <div className="space-y-3">
+            <div className="rounded-lg bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 border border-emerald-100 leading-relaxed select-none">
+              ✓ {successMsg}
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 border border-slate-200">
+              Received a recovery token via SMS or email?{' '}
+              <Link to="/reset-password" className="font-semibold text-brand-red hover:underline">
+                Enter your reset token here
+              </Link>
+            </div>
           </div>
         )}
 

@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '../../../components/PageHeader';
 import * as receiverService from '../../../services/receiverService';
+import * as authService from '../../../services/authService';
 import { useAuth } from '../../../context/AuthContext';
+import ChangePasswordForm from '../../../components/ChangePasswordForm';
+import DeleteAccountModal from '../../../components/DeleteAccountModal';
+import { arePhonesEqual } from '../../../utils/phone';
 
 export default function ReceiverProfile() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, logout } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -13,6 +17,11 @@ export default function ReceiverProfile() {
   
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Account deletion modal states
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState(null);
 
   // Form Fields
   const [name, setName] = useState('');
@@ -77,10 +86,17 @@ export default function ReceiverProfile() {
     setErrorMsg(null);
 
     // Frontend phone validation for secondary_phone if filled
-    if (secondaryPhone && secondaryPhone.trim().length < 8) {
-      setErrorMsg('Secondary phone number must be at least 8 characters long.');
-      setUpdating(false);
-      return;
+    if (secondaryPhone && secondaryPhone.trim()) {
+      if (secondaryPhone.trim().length < 8) {
+        setErrorMsg('Secondary phone number must be at least 8 characters long.');
+        setUpdating(false);
+        return;
+      }
+      if (arePhonesEqual(phone, secondaryPhone)) {
+        setErrorMsg('Secondary phone cannot be the same as primary phone.');
+        setUpdating(false);
+        return;
+      }
     }
 
     try {
@@ -103,6 +119,21 @@ export default function ReceiverProfile() {
       setErrorMsg(err.response?.data?.message || err.message || 'Failed to update profile settings.');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDeleteAccount = async ({ password, reason, confirmText }) => {
+    setDeletingAccount(true);
+    setDeleteAccountError(null);
+    try {
+      await authService.deleteAccount({ password, reason, confirmText });
+      setIsDeleteModalOpen(false);
+      logout(true);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to delete account.';
+      setDeleteAccountError(msg);
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -364,6 +395,50 @@ export default function ReceiverProfile() {
             )}
           </div>
         </div>
+
+        {/* ACCOUNT SECURITY SECTION */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">Account Security</h3>
+            <p className="text-xxs text-slate-500 font-medium mt-0.5">
+              Update your password to keep your receiver account protected.
+            </p>
+          </div>
+          <div className="border-t border-slate-100 pt-4">
+            <ChangePasswordForm />
+          </div>
+        </div>
+
+        {/* DANGER ZONE - DELETE ACCOUNT */}
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/30 p-6 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-rose-800">Danger Zone</h3>
+              <p className="text-xxs text-slate-600 font-medium mt-0.5 max-w-md leading-relaxed">
+                Permanently deactivate and delete your receiver account. This action requires re-authentication and verification.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteAccountError(null);
+                setIsDeleteModalOpen(true);
+              }}
+              className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+            >
+              Delete Account
+            </button>
+          </div>
+        </div>
+
+        {/* DELETE ACCOUNT MODAL */}
+        <DeleteAccountModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleDeleteAccount}
+          deleting={deletingAccount}
+          error={deleteAccountError}
+        />
       </div>
     </div>
   );

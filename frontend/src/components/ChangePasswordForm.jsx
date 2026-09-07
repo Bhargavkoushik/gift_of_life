@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import PasswordRequirementsRuleList, { evalPasswordRules } from './PasswordRequirementsRuleList';
 import * as authService from '../services/authService';
 
 const changePasswordSchema = z.object({
@@ -38,12 +39,8 @@ export default function ChangePasswordForm() {
   const newPasswordValue = watch('newPassword') || '';
   const confirmPasswordValue = watch('confirmPassword') || '';
 
-  // Password rules validation states
-  const hasMinLength = newPasswordValue.length >= 8;
-  const hasUppercase = /[A-Z]/.test(newPasswordValue);
-  const hasLowercase = /[a-z]/.test(newPasswordValue);
-  const hasNumber = /[0-9]/.test(newPasswordValue);
-  const hasSpecial = /[^a-zA-Z0-9]/.test(newPasswordValue);
+  // Password rules validation states via shared evaluator
+  const { isValid: isPasswordValid } = evalPasswordRules(newPasswordValue);
 
   // Confirm password matching evaluation states
   const showConfirmFeedback = confirmPasswordValue.length > 0;
@@ -128,30 +125,8 @@ export default function ChangePasswordForm() {
             </button>
           </div>
 
-          {/* Password complexity visual list */}
-          <div className="mt-2.5 space-y-1 text-[11px] select-none pl-1">
-            <div className="text-slate-500 font-semibold mb-1">New password must contain:</div>
-            <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-              <span>{hasMinLength ? '✓' : '✗'}</span>
-              <span>At least 8 characters</span>
-            </div>
-            <div className={`flex items-center gap-1.5 ${hasUppercase ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-              <span>{hasUppercase ? '✓' : '✗'}</span>
-              <span>One uppercase letter</span>
-            </div>
-            <div className={`flex items-center gap-1.5 ${hasLowercase ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-              <span>{hasLowercase ? '✓' : '✗'}</span>
-              <span>One lowercase letter</span>
-            </div>
-            <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-              <span>{hasNumber ? '✓' : '✗'}</span>
-              <span>One number</span>
-            </div>
-            <div className={`flex items-center gap-1.5 ${hasSpecial ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-              <span>{hasSpecial ? '✓' : '✗'}</span>
-              <span>One special character</span>
-            </div>
-          </div>
+          {/* Shared password complexity visual list */}
+          <PasswordRequirementsRuleList password={newPasswordValue} title="New password must contain:" />
 
           {errors.newPassword && (
             <p className="mt-1.5 text-xs text-rose-600 font-medium">{errors.newPassword.message}</p>
@@ -190,8 +165,8 @@ export default function ChangePasswordForm() {
 
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 cursor-pointer"
+          disabled={isSubmitting || !isPasswordValid || !isMatched}
+          className="w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 disabled:cursor-not-allowed cursor-pointer"
         >
           {isSubmitting ? 'Changing Password...' : 'Change Password'}
         </button>

@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import { useState } from 'react';
+import PasswordRequirementsRuleList, { evalPasswordRules } from '../../components/PasswordRequirementsRuleList';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters long').max(100),
@@ -42,16 +43,13 @@ export default function Signup() {
   const passwordValue = watch('password') || '';
   const confirmPasswordValue = watch('confirmPassword') || '';
 
-  // Password rules validation states
-  const hasMinLength = passwordValue.length >= 8;
-  const hasUppercase = /[A-Z]/.test(passwordValue);
-  const hasLowercase = /[a-z]/.test(passwordValue);
-  const hasNumber = /[0-9]/.test(passwordValue);
-  const hasSpecial = /[^a-zA-Z0-9]/.test(passwordValue);
+  // Password rules validation states from shared helper
+  const { isValid: isPasswordValid } = evalPasswordRules(passwordValue);
 
   // Confirm password matching evaluation states
   const showConfirmFeedback = confirmPasswordValue.length > 0;
   const isMatched = showConfirmFeedback && (passwordValue === confirmPasswordValue);
+
 
   const onSubmit = async (data) => {
     setServerError(null);
@@ -153,29 +151,7 @@ export default function Signup() {
             </div>
 
             {/* Password requirements visual validation list */}
-            <div className="mt-2.5 space-y-1 text-[11px] select-none pl-1">
-              <div className="text-slate-500 font-semibold mb-1">Password must contain:</div>
-              <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                <span>{hasMinLength ? '✓' : '✗'}</span>
-                <span>At least 8 characters</span>
-              </div>
-              <div className={`flex items-center gap-1.5 ${hasUppercase ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                <span>{hasUppercase ? '✓' : '✗'}</span>
-                <span>One uppercase letter</span>
-              </div>
-              <div className={`flex items-center gap-1.5 ${hasLowercase ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                <span>{hasLowercase ? '✓' : '✗'}</span>
-                <span>One lowercase letter</span>
-              </div>
-              <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                <span>{hasNumber ? '✓' : '✗'}</span>
-                <span>One number</span>
-              </div>
-              <div className={`flex items-center gap-1.5 ${hasSpecial ? 'text-green-600 font-bold' : 'text-red-500'}`}>
-                <span>{hasSpecial ? '✓' : '✗'}</span>
-                <span>One special character</span>
-              </div>
-            </div>
+            <PasswordRequirementsRuleList password={passwordValue} />
 
             {errors.password && (
               <p className="mt-1.5 text-xs text-rose-600 font-medium">{errors.password.message}</p>
@@ -213,8 +189,8 @@ export default function Signup() {
 
           <button
             type="submit"
-            disabled={isSubmitting || success}
-            className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 cursor-pointer animate-none"
+            disabled={isSubmitting || success || !isPasswordValid || !isMatched}
+            className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-red-dark disabled:bg-slate-300 disabled:cursor-not-allowed cursor-pointer animate-none"
           >
             {isSubmitting ? 'Signing up...' : 'Create Account'}
           </button>

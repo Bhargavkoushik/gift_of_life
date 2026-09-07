@@ -70,3 +70,19 @@ export const becomeCoordinatorSchema = z.object({
   district: z.string().min(2, 'District must be at least 2 characters long').max(100),
   state: z.string().min(2, 'State must be at least 2 characters long').max(100)
 });
+
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: passwordComplexity,
+  phone: z.string().min(8, 'Phone number must be at least 8 characters long').max(50),
+  employee_id: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  id_card_image: z.string().optional().nullable(),
+});
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, 'Current password is required to verify your identity'),
+  reason: z.string().min(5, 'Deletion reason must be at least 5 characters long').max(500, 'Deletion reason cannot exceed 500 characters'),
+  confirmText: z.literal('DELETE', { errorMap: () => ({ message: 'You must type DELETE to confirm' }) }),
+});
+

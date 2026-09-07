@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.jpeg';
 import { useAuth } from '../context/AuthContext';
 import MedicalBackground from '../components/MedicalBackground';
 import BackButton from '../components/BackButton';
+import SignOutModal from '../components/SignOutModal';
 import { getAdminNotifications } from '../services/adminService';
 
 const adminLinks = [
@@ -127,25 +128,15 @@ export default function AdminLayout() {
   }, []);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState(null);
-  const modalRef = useRef(null);
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
-    setConfirmText('');
-    setLogoutError(null);
-  };
-
-  const handleCancelLogout = () => {
-    setShowLogoutModal(false);
-    setConfirmText('');
     setLogoutError(null);
   };
 
   const handleConfirmLogout = async () => {
-    if (confirmText !== 'SIGNOUT') return;
     setLoggingOut(true);
     setLogoutError(null);
     try {
@@ -159,67 +150,6 @@ export default function AdminLayout() {
       setLoggingOut(false);
     }
   };
-
-  const handleInputKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      if (confirmText === 'SIGNOUT' && !loggingOut) {
-        handleConfirmLogout();
-      } else {
-        e.preventDefault();
-      }
-    }
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setShowLogoutModal(false);
-        setConfirmText('');
-        setLogoutError(null);
-      }
-    };
-    if (showLogoutModal) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [showLogoutModal]);
-
-  useEffect(() => {
-    if (!showLogoutModal) return;
-    const modalElement = modalRef.current;
-    if (!modalElement) return;
-
-    const focusableElements = modalElement.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-
-    const handleTabTrap = (e) => {
-      if (e.key !== 'Tab') return;
-      if (e.shiftKey) {
-        if (document.activeElement === firstElement) {
-          lastElement.focus();
-          e.preventDefault();
-        }
-      } else {
-        if (document.activeElement === lastElement) {
-          firstElement.focus();
-          e.preventDefault();
-        }
-      }
-    };
-
-    modalElement.addEventListener('keydown', handleTabTrap);
-    const input = modalElement.querySelector('input');
-    if (input) input.focus();
-
-    return () => {
-      modalElement.removeEventListener('keydown', handleTabTrap);
-    };
-  }, [showLogoutModal]);
 
   const navLinksContent = (onLinkClick) => (
     <nav className="flex flex-col gap-1 font-sans" aria-label="Admin navigation">
@@ -293,6 +223,20 @@ export default function AdminLayout() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             <span>Profile / Account</span>
+          </NavLink>
+
+          <NavLink
+            to="/change-password"
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xxs font-bold transition ${
+                isActive ? 'text-brand-red bg-rose-50' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`
+            }
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            <span>Change Password</span>
           </NavLink>
 
           <button
@@ -382,6 +326,17 @@ export default function AdminLayout() {
                   <span>Profile / Account</span>
                 </NavLink>
 
+                <NavLink
+                  to="/change-password"
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xxs font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition uppercase tracking-wider"
+                >
+                  <svg className="h-4 w-4 stroke-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                  <span>Change Password</span>
+                </NavLink>
+
                 <button
                   onClick={() => {
                     setIsDrawerOpen(false);
@@ -406,73 +361,13 @@ export default function AdminLayout() {
         </main>
       </div>
 
-      {/* CONFIRM SIGN OUT MODAL */}
-      {showLogoutModal && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="logout-modal-title"
-        >
-          <div 
-            ref={modalRef}
-            className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-sm p-6 space-y-4 font-semibold text-slate-700 text-xs"
-          >
-            <h3 id="logout-modal-title" className="text-sm font-black text-slate-900 select-none">
-              Confirm Sign Out
-            </h3>
-            
-            <p className="text-slate-500 leading-relaxed font-sans text-xxs select-none">
-              You are about to sign out of the Super Admin Workspace. This will end your current session.
-            </p>
-            
-            {logoutError && (
-              <p className="text-rose-600 font-bold text-[10px] select-none">
-                ⚠️ {logoutError}
-              </p>
-            )}
-
-            <div className="space-y-1.5">
-              <label 
-                htmlFor="signout-confirm-input" 
-                className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block select-none"
-              >
-                Type SIGNOUT to confirm
-              </label>
-              <input
-                id="signout-confirm-input"
-                type="text"
-                autoFocus
-                placeholder="Type SIGNOUT"
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                onKeyDown={handleInputKeyDown}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-red transition"
-                disabled={loggingOut}
-              />
-            </div>
-            
-            <div className="flex justify-end gap-2 pt-2 select-none">
-              <button
-                type="button"
-                onClick={handleCancelLogout}
-                disabled={loggingOut}
-                className="rounded-xl border border-slate-250 bg-white hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 cursor-pointer transition text-xxs disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmLogout}
-                disabled={confirmText !== 'SIGNOUT' || loggingOut}
-                className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 cursor-pointer transition text-xxs disabled:bg-slate-300 disabled:cursor-not-allowed"
-              >
-                {loggingOut ? 'Signing out...' : 'Sign Out'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SignOutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+        loggingOut={loggingOut}
+        error={logoutError}
+      />
     </div>
   );
 }
